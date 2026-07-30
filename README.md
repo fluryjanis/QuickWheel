@@ -33,7 +33,7 @@ Transform your browsing speed with **QuickWheel** a lightweight, 2-layer radial 
 
 ---
 
-##  Screenshots
+##  Screenshot
 
 *<img width="630" height="500" alt="Frame 9" src="https://github.com/user-attachments/assets/a7a59031-3d9e-4833-8a18-17669c420d6b" />*
 
