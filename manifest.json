@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "QuickWheel",
+  "version": "1.0.0",
+  "description": "Radial mouse gesture wheel triggered by middle-click hold for instant context actions.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "clipboardWrite",
+    "sessions"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+    "icons": {
+"48": "icon48.png"
+},
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["styles.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

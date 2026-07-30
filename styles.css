@@ -1,0 +1,177 @@
+/* Action Wheel - Dual-Ring Encapsulated Stylesheet */
+
+:host {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #f1f5f9;
+  cursor: pointer !important;
+}
+
+.hidden {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Full-Screen Transparent Backdrop */
+.wheel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
+  pointer-events: auto;
+  cursor: pointer !important;
+  background: transparent;
+}
+
+.wheel-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  pointer-events: auto;
+  border-radius: 50%;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+  cursor: pointer !important;
+}
+
+/* Glassmorphism Background & SVG Slices */
+.wheel-svg {
+  width: 400px;
+  height: 400px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.85);
+  cursor: pointer !important;
+}
+
+.quadrant-slice {
+  fill: rgba(30, 41, 59, 0.6);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease, transform 0.15s ease;
+  cursor: pointer !important;
+}
+
+.quadrant-slice.active {
+  fill: rgba(59, 130, 246, 0.7);
+  stroke: #60a5fa;
+  stroke-width: 2;
+  cursor: pointer !important;
+}
+
+/* Center Neutral Cancel Circle */
+.wheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  cursor: pointer !important;
+}
+
+.wheel-center.active {
+  background: rgba(239, 68, 68, 0.85);
+  border-color: #fca5a5;
+  scale: 1.08;
+  cursor: pointer !important;
+}
+
+.cancel-icon {
+  font-size: 20px;
+  color: #94a3b8;
+  font-weight: bold;
+  cursor: pointer !important;
+}
+
+.wheel-center.active .cancel-icon {
+  color: #ffffff;
+}
+
+/* Quadrant Icon & Text Overlays */
+.wheel-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  text-align: center;
+  pointer-events: none;
+  color: #94a3b8;
+  transition: color 0.15s ease, transform 0.15s ease;
+  cursor: pointer !important;
+}
+
+.wheel-item.active {
+  color: #ffffff;
+  transform: translate(-50%, -50%) scale(1.12) !important;
+  cursor: pointer !important;
+}
+
+.item-icon {
+  width: 20px;
+  height: 20px;
+  margin-bottom: 2px;
+}
+
+.wheel-item span {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* INNER RING POSITIONING (Radius = 78px from center 200, 200) */
+.item-inner-up     { top: 122px; left: 50%; transform: translate(-50%, -50%); }
+.item-inner-right  { top: 50%; left: 278px; transform: translate(-50%, -50%); }
+.item-inner-bottom { top: 278px; left: 50%; transform: translate(-50%, -50%); }
+.item-inner-left   { top: 50%; left: 122px; transform: translate(-50%, -50%); }
+
+/* OUTER RING POSITIONING (Radius = 160px from center 200, 200) */
+.item-outer-up     { top: 40px; left: 50%; transform: translate(-50%, -50%); }
+.item-outer-right  { top: 50%; left: 360px; transform: translate(-50%, -50%); }
+.item-outer-bottom { top: 360px; left: 50%; transform: translate(-50%, -50%); }
+.item-outer-left   { top: 50%; left: 40px; transform: translate(-50%, -50%); }
+
+/* Toast Notifications */
+.action-wheel-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 2147483647;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.action-wheel-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.action-wheel-toast.hidden {
+  opacity: 0;
+  transform: translateY(10px);
+}
