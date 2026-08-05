@@ -1,6 +1,6 @@
 /**
- * Action Wheel - Background Service Worker
- * Handles extension messaging, Tab Duplication, Tab Muting, Reopening Tabs, and Batch Translation.
+ * Research Wheel - Background Worker
+ * Handles Scholar & PubMed searches, Workspace Side Panel opening, and Translation API.
  */
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -10,29 +10,30 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Handle Tab Duplication
-  if (message.type === 'DUPLICATE_TAB') {
-    if (sender.tab && sender.tab.id) {
-      chrome.tabs.duplicate(sender.tab.id);
+  const tab = sender.tab;
+
+  // Open Research Workspace Side Panel
+  if (message.type === 'OPEN_RESEARCH_PANEL') {
+    if (tab && tab.id) {
+      chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
     }
   }
 
-  // Handle Tab Muting
-  if (message.type === 'TOGGLE_MUTE_TAB') {
-    if (sender.tab && sender.tab.id) {
-      const isMuted = sender.tab.mutedInfo ? sender.tab.mutedInfo.muted : false;
-      chrome.tabs.update(sender.tab.id, { muted: !isMuted });
-    }
+  // Scholar Search
+  if (message.type === 'SEARCH_SCHOLAR') {
+    const query = message.payload.query;
+    const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`;
+    chrome.tabs.create({ url: scholarUrl });
   }
 
-  // Handle Reopening Last Closed Tab
-  if (message.type === 'REOPEN_CLOSED_TAB') {
-    if (chrome.sessions && chrome.sessions.restore) {
-      chrome.sessions.restore();
-    }
+  // PubMed Search
+  if (message.type === 'SEARCH_PUBMED') {
+    const query = message.payload.query;
+    const pubmedUrl = `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}`;
+    chrome.tabs.create({ url: pubmedUrl });
   }
 
-  // Handle Under-the-Hood Batch Text Translation
+  // Under-the-Hood Batch Translation
   if (message.type === 'TRANSLATE_PAGE_NODES') {
     const textList = message.payload.textList || [];
     const targetLang = (chrome.i18n.getUILanguage() || 'en').split('-')[0];
@@ -56,7 +57,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: err.message });
       });
 
-    return true; // Keeps messaging channel open for asynchronous response
+    return true; // Keep message channel open
   }
 
   return true;

@@ -1,4 +1,4 @@
-/* Action Wheel - Dual-Ring Encapsulated Stylesheet */
+/* Research Wheel - Encapsulated Stylesheet */
 
 :host {
   all: initial;
@@ -14,7 +14,7 @@
   pointer-events: none !important;
 }
 
-/* Full-Screen Transparent Backdrop */
+/* Full-Screen Transparent Overlay Backdrop */
 .wheel-overlay {
   position: fixed;
   top: 0;
@@ -25,6 +25,7 @@
   pointer-events: auto;
   cursor: pointer !important;
   background: transparent;
+  overscroll-behavior: none !important; /* Blocks scroll chaining to host webpage */
 }
 
 .wheel-wrapper {
@@ -38,7 +39,6 @@
   cursor: pointer !important;
 }
 
-/* Glassmorphism Background & SVG Slices */
 .wheel-svg {
   width: 400px;
   height: 400px;
@@ -46,26 +46,25 @@
   -webkit-backdrop-filter: blur(10px);
   border-radius: 50%;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.88);
   cursor: pointer !important;
 }
 
 .quadrant-slice {
-  fill: rgba(30, 41, 59, 0.6);
-  stroke: rgba(255, 255, 255, 0.12);
+  fill: rgba(30, 41, 59, 0.65);
+  stroke: rgba(255, 255, 255, 0.15);
   stroke-width: 1.5;
   transition: fill 0.15s ease, transform 0.15s ease;
   cursor: pointer !important;
 }
 
 .quadrant-slice.active {
-  fill: rgba(59, 130, 246, 0.7);
+  fill: rgba(59, 130, 246, 0.75);
   stroke: #60a5fa;
   stroke-width: 2;
   cursor: pointer !important;
 }
 
-/* Center Neutral Cancel Circle */
 .wheel-center {
   position: absolute;
   top: 50%;
@@ -101,51 +100,42 @@
   color: #ffffff;
 }
 
-/* Quadrant Icon & Text Overlays */
+/* BALANCED 8-OCTANT ITEM POSITIONING (Radius = 98px from center 200,200) */
 .wheel-item {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 80px;
+  width: 100px;
   text-align: center;
   pointer-events: none;
-  color: #94a3b8;
+  color: #cbd5e1;
   transition: color 0.15s ease, transform 0.15s ease;
   cursor: pointer !important;
 }
 
 .wheel-item.active {
   color: #ffffff;
-  transform: translate(-50%, -50%) scale(1.12) !important;
+  transform: translate(-50%, -50%) scale(1.1) !important;
   cursor: pointer !important;
 }
 
-.item-icon {
-  width: 20px;
-  height: 20px;
-  margin-bottom: 2px;
-}
-
 .wheel-item span {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }
 
-/* INNER RING POSITIONING (Radius = 78px from center 200, 200) */
-.item-inner-up     { top: 122px; left: 50%; transform: translate(-50%, -50%); }
-.item-inner-right  { top: 50%; left: 278px; transform: translate(-50%, -50%); }
-.item-inner-bottom { top: 278px; left: 50%; transform: translate(-50%, -50%); }
-.item-inner-left   { top: 50%; left: 122px; transform: translate(-50%, -50%); }
-
-/* OUTER RING POSITIONING (Radius = 160px from center 200, 200) */
-.item-outer-up     { top: 40px; left: 50%; transform: translate(-50%, -50%); }
-.item-outer-right  { top: 50%; left: 360px; transform: translate(-50%, -50%); }
-.item-outer-bottom { top: 360px; left: 50%; transform: translate(-50%, -50%); }
-.item-outer-left   { top: 50%; left: 40px; transform: translate(-50%, -50%); }
+.item-n  { top: 102px; left: 50%;    transform: translate(-50%, -50%); }
+.item-ne { top: 131px; left: 269px;  transform: translate(-50%, -50%); }
+.item-e  { top: 50%;    left: 298px;  transform: translate(-50%, -50%); }
+.item-se { top: 269px; left: 269px;  transform: translate(-50%, -50%); }
+.item-s  { top: 298px; left: 50%;    transform: translate(-50%, -50%); }
+.item-sw { top: 269px; left: 131px;  transform: translate(-50%, -50%); }
+.item-w  { top: 50%;    left: 102px;  transform: translate(-50%, -50%); }
+.item-nw { top: 131px; left: 131px;  transform: translate(-50%, -50%); }
 
 /* Toast Notifications */
 .action-wheel-toast {

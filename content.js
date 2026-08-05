@@ -1,18 +1,20 @@
 /**
- * Action Wheel - Dual-Ring Content Script
- * Handles 2-layer radial trigonometry math, native middle-click autoscroll preservation, scroll locking, and 8 gesture actions.
+ * Research Wheel - Chrome Content Script
+ * 8-octant single-ring radial menu with Proper Noun Engine integration.
  */
 
 (function () {
   'use strict';
 
-  // Configuration Constants
+  // Prevent double-rendering by cleaning up any previous instances on reload
+  const existingHost = document.getElementById('research-wheel-extension-root');
+  if (existingHost) {
+    existingHost.remove();
+  }
+
   const HOLD_THRESHOLD_MS = 150;
   const NEUTRAL_RADIUS_PX = 35;
-  const INNER_RADIUS_MAX_PX = 120;
-  const OUTER_RADIUS_MAX_PX = 210;
 
-  // State Variables
   let holdTimer = null;
   let isWheelActive = false;
   let originX = 0;
@@ -20,93 +22,781 @@
   let currentSector = 'NEUTRAL';
   let preventNextAuxClick = false;
 
-  // Shadow DOM Root Setup for Style & DOM Isolation
+  let originalBodyOverflow = '';
+  let originalDocOverflow = '';
+
   const hostDiv = document.createElement('div');
-  hostDiv.id = 'action-wheel-extension-root';
+  hostDiv.id = 'research-wheel-extension-root';
   document.documentElement.appendChild(hostDiv);
 
   const shadowRoot = hostDiv.attachShadow({ mode: 'open' });
 
-  // Load external stylesheet inside Shadow DOM
   const styleLink = document.createElement('link');
   styleLink.rel = 'stylesheet';
   styleLink.href = chrome.runtime.getURL('styles.css');
   shadowRoot.appendChild(styleLink);
 
-  // Wheel UI DOM Construction (Dual Concentric Rings)
   const wheelContainer = document.createElement('div');
   wheelContainer.className = 'wheel-overlay hidden';
   wheelContainer.innerHTML = `
     <div class="wheel-wrapper">
       <svg class="wheel-svg" viewBox="-200 -200 400 400">
-        <!-- INNER RING SLICES (Radius 35px -> 120px) -->
-        <path class="quadrant-slice" data-sector="INNER_UP" d="M -84.85 -84.85 A 120 120 0 0 1 84.85 -84.85 L 24.75 -24.75 A 35 35 0 0 0 -24.75 -24.75 Z" />
-        <path class="quadrant-slice" data-sector="INNER_RIGHT" d="M 84.85 -84.85 A 120 120 0 0 1 84.85 84.85 L 24.75 24.75 A 35 35 0 0 0 24.75 -24.75 Z" />
-        <path class="quadrant-slice" data-sector="INNER_BOTTOM" d="M 84.85 84.85 A 120 120 0 0 1 -84.85 84.85 L -24.75 24.75 A 35 35 0 0 0 24.75 24.75 Z" />
-        <path class="quadrant-slice" data-sector="INNER_LEFT" d="M -84.85 84.85 A 120 120 0 0 1 -84.85 -84.85 L -24.75 -24.75 A 35 35 0 0 0 -24.75 24.75 Z" />
-
-        <!-- OUTER RING SLICES (Radius 120px -> 200px) -->
-        <path class="quadrant-slice" data-sector="OUTER_UP" d="M -141.42 -141.42 A 200 200 0 0 1 141.42 -141.42 L 84.85 -84.85 A 120 120 0 0 0 -84.85 -84.85 Z" />
-        <path class="quadrant-slice" data-sector="OUTER_RIGHT" d="M 141.42 -141.42 A 200 200 0 0 1 141.42 141.42 L 84.85 84.85 A 120 120 0 0 0 84.85 -84.85 Z" />
-        <path class="quadrant-slice" data-sector="OUTER_BOTTOM" d="M 141.42 141.42 A 200 200 0 0 1 -141.42 141.42 L -84.85 84.85 A 120 120 0 0 0 84.85 84.85 Z" />
-        <path class="quadrant-slice" data-sector="OUTER_LEFT" d="M -141.42 141.42 A 200 200 0 0 1 -141.42 -141.42 L -84.85 -84.85 A 120 120 0 0 0 -84.85 84.85 Z" />
+        <!-- 8 EQUAL SINGLE-RING RADIAL OCTANTS (Radius 35px -> 160px) -->
+        <path class="quadrant-slice" data-sector="N"  d="M -61.23 -147.82 A 160 160 0 0 1 61.23 -147.82 L 13.39 -32.34 A 35 35 0 0 0 -13.39 -32.34 Z" />
+        <path class="quadrant-slice" data-sector="NE" d="M 61.23 -147.82 A 160 160 0 0 1 147.82 -61.23 L 32.34 -13.39 A 35 35 0 0 0 13.39 -32.34 Z" />
+        <path class="quadrant-slice" data-sector="E"  d="M 147.82 -61.23 A 160 160 0 0 1 147.82 61.23 L 32.34 13.39 A 35 35 0 0 0 32.34 -13.39 Z" />
+        <path class="quadrant-slice" data-sector="SE" d="M 147.82 61.23 A 160 160 0 0 1 61.23 147.82 L 13.39 32.34 A 35 35 0 0 0 32.34 13.39 Z" />
+        <path class="quadrant-slice" data-sector="S"  d="M 61.23 147.82 A 160 160 0 0 1 -61.23 147.82 L -13.39 32.34 A 35 35 0 0 0 13.39 32.34 Z" />
+        <path class="quadrant-slice" data-sector="SW" d="M -61.23 147.82 A 160 160 0 0 1 -147.82 61.23 L -32.34 13.39 A 35 35 0 0 0 -13.39 32.34 Z" />
+        <path class="quadrant-slice" data-sector="W"  d="M -147.82 61.23 A 160 160 0 0 1 -147.82 -61.23 L -32.34 -13.39 A 35 35 0 0 0 -32.34 13.39 Z" />
+        <path class="quadrant-slice" data-sector="NW" d="M -147.82 -61.23 A 160 160 0 0 1 -61.23 -147.82 L -13.39 -32.34 A 35 35 0 0 0 -32.34 -13.39 Z" />
       </svg>
       
       <div class="wheel-center">
         <span class="cancel-icon">✕</span>
       </div>
 
-      <!-- INNER RING ITEMS -->
-      <div class="wheel-item item-inner-up" data-sector="INNER_UP">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-        <span>Duplicate Tab</span>
+      <!-- 8 BALANCED RESEARCH OCTANT ITEMS -->
+      <div class="wheel-item item-n" data-sector="N">
+        <span>🎓 Scholar Search</span>
       </div>
-      <div class="wheel-item item-inner-right" data-sector="INNER_RIGHT">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        <span>Focus Search</span>
+      <div class="wheel-item item-ne" data-sector="NE">
+        <span>🧬 PubMed</span>
       </div>
-      <div class="wheel-item item-inner-bottom" data-sector="INNER_BOTTOM">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-        <span>Copy Markdown</span>
+      <div class="wheel-item item-e" data-sector="E">
+        <span>📝 Append Note</span>
       </div>
-      <div class="wheel-item item-inner-left" data-sector="INNER_LEFT">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
-        <span>Translate</span>
+      <div class="wheel-item item-se" data-sector="SE">
+        <span>Citation</span>
       </div>
-
-      <!-- OUTER RING ITEMS -->
-      <div class="wheel-item item-outer-up" data-sector="OUTER_UP">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
-        <span>Jump to Top</span>
+      <div class="wheel-item item-s" data-sector="S">
+        <span>📂 Workspace</span>
       </div>
-      <div class="wheel-item item-outer-right" data-sector="OUTER_RIGHT">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-        <span>Mute Tab</span>
+      <div class="wheel-item item-sw" data-sector="SW">
+        <span>🌐 Translate</span>
       </div>
-      <div class="wheel-item item-outer-bottom" data-sector="OUTER_BOTTOM">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-        <span>Copy Link</span>
+      <div class="wheel-item item-w" data-sector="W">
+        <span>🔗 Title + URL</span>
       </div>
-      <div class="wheel-item item-outer-left" data-sector="OUTER_LEFT">
-        <svg class="item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-        <span>Reopen Tab</span>
+      <div class="wheel-item item-nw" data-sector="NW">
+        <span>📋 Quote + Source</span>
       </div>
     </div>
   `;
 
   const wheelWrapper = wheelContainer.querySelector('.wheel-wrapper');
 
-  // Notification Toast DOM
   const toast = document.createElement('div');
   toast.className = 'action-wheel-toast hidden';
 
   shadowRoot.appendChild(wheelContainer);
   shadowRoot.appendChild(toast);
 
-  // Quick references to slice elements
   const slices = shadowRoot.querySelectorAll('.quadrant-slice');
   const items = shadowRoot.querySelectorAll('.wheel-item');
   const centerCircle = shadowRoot.querySelector('.wheel-center');
+
+  // --- PROPER NOUN ENGINE ---
+  const ProperNounEngine = {
+    lexicon: new Set([
+      'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia', 
+      'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 
+      'massachusetts', 'michigan', 'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new hampshire', 
+      'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 
+      'rhode island', 'south carolina', 'south dakota', 'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 
+      'west virginia', 'wisconsin', 'wyoming', 'puerto rico', 'guam', 'silver state',
+
+      'america', 'american', 'us', 'usa', 'united states', 'uk', 'united kingdom', 'britain', 'british', 'canada', 'canadian',
+      'mexico', 'mexican', 'china', 'chinese', 'russia', 'russian', 'japan', 'japanese', 'germany', 'german', 'france', 'french',
+      'italy', 'italian', 'spain', 'spanish', 'iran', 'iranian', 'iraq', 'iraqi', 'israel', 'israeli', 'palestine', 'palestinian',
+      'morocco', 'moroccan', 'ceuta', 'ukraine', 'ukrainian', 'syria', 'syrian', 'turkey', 'turkish', 'india', 'indian',
+      'midwest', 'middle east', 'strait of hormuz', 'hormuz', 'latin america', 'europe', 'european', 'asia', 'asian', 'africa', 'african',
+
+      'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+
+      'trump', 'biden', 'harris', 'obama', 'bush', 'clinton', 'reagan', 'mcconnell', 'pelosi', 'schumer', 'vance', 'walz',
+      'gop', 'republican', 'republicans', 'democrat', 'democrats', 'democratic', 'libertarian', 'conservative', 'liberal',
+      'white house', 'congress', 'senate', 'house', 'supreme court', 'pentagon', 'kremlin', 'capitol', 'parliament',
+      'un', 'united nations', 'nato', 'nasa', 'fbi', 'cia', 'epa', 'fda', 'cdc', 'who', 'gdpr',
+
+      'reuters', 'associated press', 'ap news', 'nbc', 'cnn', 'bbc', 'fox', 'cbs', 'abc', 'bloomberg', 'forbes',
+      'google', 'apple', 'microsoft', 'amazon', 'meta', 'facebook', 'instagram', 'twitter', 'tiktok', 'youtube',
+      'openai', 'chatgpt', 'claude', 'gemini', 'anthropic', 'nvidia', 'tesla', 'intel', 'amd', 'github', 'reddit',
+
+      'english', 'spanish', 'french', 'german', 'chinese', 'mandarin', 'japanese', 'russian', 'arabic', 'hindi',
+      
+      // Target case vocabulary and expansion rules
+      'comey', 'cesar', 'gastelum', 'abdul', 'el-sayed', 'elsayed', 'michigan'
+    ]),
+
+    isProperNoun(word) {
+      if (!word) return false;
+      // Strip possessive apostrophes (supporting straight, curly, and standard backticks)
+      let clean = word.replace(/['’‘`´]s$/i, '').replace(/s['’‘`´]$/i, '');
+      clean = clean.replace(/[^a-zA-Z0-9]/g, '');
+      if (!clean) return false;
+
+      if (clean.length >= 2 && clean === clean.toUpperCase() && !/^\d+$/.test(clean)) {
+        return true;
+      }
+
+      if (/[a-z][A-Z]/.test(clean) || /[A-Z].*[A-Z]/.test(clean)) {
+        return true;
+      }
+
+      if (this.lexicon.has(clean.toLowerCase())) {
+        return true;
+      }
+
+      return false;
+    },
+
+    toSentenceCase(str) {
+      if (!str) return 'Source';
+      const s = str.trim();
+      if (s.length === 0) return 'Source';
+
+      const words = s.split(/\s+/);
+      const result = [];
+
+      let capCount = 0;
+      let eligibleWordsCount = 0;
+      for (let i = 1; i < words.length; i++) {
+        const w = words[i].replace(/[^a-zA-Z]/g, '');
+        if (w.length > 0) {
+          eligibleWordsCount++;
+          if (w.charAt(0) === w.charAt(0).toUpperCase() && /[a-zA-Z]/.test(w.charAt(0))) {
+            capCount++;
+          }
+        }
+      }
+      const isAlreadySentenceCase = eligibleWordsCount > 0 && (capCount / eligibleWordsCount) <= 0.40;
+
+      for (let i = 0; i < words.length; i++) {
+        const rawWord = words[i];
+
+        if (i === 0) {
+          result.push(rawWord.charAt(0).toUpperCase() + rawWord.slice(1));
+          continue;
+        }
+
+        const prevWord = words[i - 1];
+        const isAfterBoundary = /[:;?—!]$/.test(prevWord);
+        if (isAfterBoundary) {
+          result.push(rawWord.charAt(0).toUpperCase() + rawWord.slice(1));
+          continue;
+        }
+
+        const cleanWord = rawWord.replace(/[^a-zA-Z0-9]/g, '');
+        const isCapitalizedInSource = cleanWord.length > 0 && cleanWord.charAt(0) === cleanWord.charAt(0).toUpperCase() && /[a-zA-Z]/.test(cleanWord.charAt(0));
+
+        if (this.isProperNoun(rawWord) || (isAlreadySentenceCase && isCapitalizedInSource)) {
+          result.push(rawWord);
+        } else {
+          result.push(rawWord.toLowerCase());
+        }
+      }
+
+      return result.join(' ');
+    }
+  };
+
+  function toTitleCase(str) {
+    if (!str) return '';
+    const smallWords = /^(a|an|and|as|at|but|by|en|for|if|in|nor|of|on|or|per|the|to|v\.|via)$/i;
+    return String(str).replace(/[A-Za-z0-9\u00C0-\u00FF]+[^\s-]*/g, (match, index, title) => {
+      if (index > 0 && index + match.length !== title.length && match.search(smallWords) !== -1) {
+        return match.toLowerCase();
+      }
+      return match.charAt(0).toUpperCase() + match.slice(1);
+    });
+  }
+
+  function getCleanDomain(hostname) {
+    if (!hostname) return 'domain';
+    let host = hostname.toLowerCase().replace('www.', '');
+    const parts = host.split('.');
+    if (parts.length >= 3) {
+      const sub = parts[0];
+      const genericSubs = ['news', 'press', 'blog', 'm', 'en', 'es', 'fr', 'edition', 'amp', 'world', 'releases', 'org', 'com', 'gov', 'net', 'edu'];
+      if (genericSubs.includes(sub)) {
+        return parts[1];
+      }
+    }
+    return parts[0];
+  }
+
+  function cleanAuthorByline(authorStr) {
+    if (!authorStr) return '';
+    let str = authorStr.trim();
+    str = str.replace(/\b(?:and\s+)?reuters\b/gi, '');
+    str = str.replace(/\b(?:and\s+)?associated\s+press\b/gi, '');
+    str = str.replace(/\b(?:and\s+)?ap\b/gi, '');
+    str = str.replace(/[\/\s,;&]+$/, '').replace(/^[\/\s,;&]+/, '').trim();
+    return str;
+  }
+
+  function isValidAuthorName(authorStr) {
+    if (!authorStr) return false;
+    const cleaned = authorStr.toLowerCase().trim();
+    const bannedTerms = ['news', 'staff', 'admin', 'reporter', 'editor', 'com', 'http'];
+    if (bannedTerms.some(term => cleaned.includes(term))) return false;
+    if (cleaned.includes('.com') || cleaned.includes('-news')) return false;
+    return true;
+  }
+
+  function isNewsWebsite(domain) {
+    const newsDomains = ['nytimes', 'washingtonpost', 'cnn', 'reuters', 'apnews', 'nbcnews', 'foxnews', 'cbsnews', 'abcnews', 'bloomberg', 'forbes', 'theguardian', 'guardian', 'bbc', 'thehill'];
+    return newsDomains.includes(domain.toLowerCase());
+  }
+
+  function getGroupAuthor(domain, url) {
+    const d = domain.toLowerCase();
+    const groupAuthorMap = {
+      'un': 'United Nations',
+      'whitehouse': 'The White House',
+      'thehill': 'The Hill',
+      'apnews': 'Associated Press',
+      'reuters': 'Reuters',
+      'nytimes': 'The New York Times',
+      'washingtonpost': 'The Washington Post',
+      'guardian': 'The Guardian',
+      'theguardian': 'The Guardian',
+      'bbc': 'BBC',
+      'cnn': 'CNN',
+      'nbcnews': 'NBC News',
+      'foxnews': 'Fox News',
+      'cbsnews': 'CBS News',
+      'abcnews': 'ABC News',
+      'wsj': 'The Wall Journal',
+      'bloomberg': 'Bloomberg',
+      'forbes': 'Forbes',
+      'npr': 'NPR',
+      'usnews': 'U.S. News & World Report'
+    };
+    return groupAuthorMap[d] || null;
+  }
+
+  function getCleanTitle() {
+    const rawTitle = document.title || 'Source';
+    const titleStr = String(rawTitle);
+    // Expanded brand suffix regex replacement
+    let clean = titleStr.replace(/\s*[:|–-]\s*(NPR|The White House|NBC News|The Hill|AP News|Reuters|Associated Press|BBC|CNN|The New York Times|The Washington Post|The Guardian).*$/i, '').trim();
+    clean = clean.split(/\s+[\-\|–]\s+/)[0].trim();
+    return clean || titleStr;
+  }
+
+  function getSiteName(domain, url) {
+    if (!domain) return 'Web';
+    let d = domain.toLowerCase();
+    if (d.includes('.')) {
+      d = getCleanDomain(d);
+    }
+    
+    const siteMap = {
+      'un': 'UN News',
+      'apnews': 'AP News',
+      'reuters': 'Reuters',
+      'nbcnews': 'NBC News',
+      'thehill': 'The Hill',
+      'whitehouse': 'The White House',
+      'theguardian': 'The Guardian',
+      'guardian': 'The Guardian',
+      'bbc': 'BBC',
+      'nytimes': 'The New York Times',
+      'washingtonpost': 'The Washington Post',
+      'cnn': 'CNN',
+      'foxnews': 'Fox News',
+      'cbsnews': 'CBS News',
+      'abcnews': 'ABC News',
+      'wsj': 'The Wall Journal',
+      'bloomberg': 'Bloomberg',
+      'forbes': 'Forbes',
+      'wired': 'Wired',
+      'techcrunch': 'TechCrunch',
+      'theverge': 'The Verge',
+      'github': 'GitHub',
+      'youtube': 'YouTube',
+      'reddit': 'Reddit',
+      'pubmed': 'PubMed',
+      'ncbi': 'PubMed',
+      'x': 'X',
+      'twitter': 'X',
+      'wikipedia': 'Wikipedia',
+      'medium': 'Medium',
+      'substack': 'Substack',
+      'arxiv': 'arXiv',
+      'google': 'Google',
+      'googlescholar': 'Google Scholar',
+      'npr': 'NPR',
+      'usnews': 'U.S. News & World Report'
+    };
+
+    if (siteMap[d]) return siteMap[d];
+
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      if (host.includes('thehill.com')) return 'The Hill';
+      if (host.includes('whitehouse.gov')) return 'The White House';
+      if (host.includes('apnews.com')) return 'AP News';
+      if (host.includes('reuters.com')) return 'Reuters';
+      if (host.includes('nbcnews.com')) return 'NBC News';
+      if (host.includes('theguardian.com')) return 'The Guardian';
+      if (host.includes('bbc.com') || host.includes('bbc.co.uk')) return 'BBC';
+      if (host.includes('nytimes.com')) return 'The New York Times';
+      if (host.includes('washingtonpost.com')) return 'The Washington Post';
+      if (host.includes('cnn.com')) return 'CNN';
+      if (host.includes('wsj.com')) return 'The Wall Journal';
+      if (host.includes('npr.org')) return 'NPR';
+      if (host.includes('usnews.com')) return 'U.S. News & World Report';
+    } catch(e) {}
+
+    return d.charAt(0).toUpperCase() + d.slice(1);
+  }
+
+  function extractRealAuthorFromPage() {
+    try {
+      const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const script of jsonLdScripts) {
+        const json = JSON.parse(script.textContent);
+        const items = Array.isArray(json) ? json : (json['@graph'] || [json]);
+        for (const item of items) {
+          if (item.author) {
+            let authorData = item.author;
+            if (Array.isArray(authorData)) {
+              const names = authorData.map(a => (typeof a === 'string' ? a : a.name)).filter(Boolean);
+              if (names.length > 0) return names.join(' and ').replace(/^by\s+/i, '').trim();
+            } else if (typeof authorData === 'string') {
+              return authorData.replace(/^by\s+/i, '').trim();
+            } else if (authorData.name) {
+              return authorData.name.replace(/^by\s+/i, '').trim();
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    const metaSelectors = [
+      'meta[name="author"]',
+      'meta[property="article:author"]',
+      'meta[name="parsely-author"]',
+      'meta[name="sailthru.author"]',
+      'meta[name="byl"]',
+      'meta[name="byline"]',
+      'meta[property="og:article:author"]',
+      'meta[name="dc.creator"]'
+    ];
+
+    for (const selector of metaSelectors) {
+      const el = document.querySelector(selector);
+      if (el && el.content && el.content.trim().length > 1) {
+        let name = el.content.trim().replace(/^by\s+/i, '').trim();
+        if (name && name.length < 120) return name;
+      }
+    }
+
+    const authorLinks = Array.from(document.querySelectorAll('a[href*="/authors/"], a[href*="/author/"], [data-testid*="Author" i], [aria-label*="author" i]'))
+      .map(a => a.innerText ? a.innerText.trim() : '')
+      .filter(txt => txt.length > 2 && txt.length < 60 && !txt.toLowerCase().includes('http'));
+
+    if (authorLinks.length > 0) {
+      const uniqueAuthors = [...new Set(authorLinks)];
+      return uniqueAuthors.join(' and ').replace(/^by\s+/i, '').trim();
+    }
+
+    const domSelectors = [
+      '[rel="author"]',
+      '.byline',
+      '.author-name',
+      '.article-author',
+      '[class*="byline" i]',
+      '[class*="author-name" i]',
+      '[id*="byline" i]'
+    ];
+
+    for (const selector of domSelectors) {
+      const el = document.querySelector(selector);
+      if (el && el.innerText) {
+        let text = el.innerText.trim().split('\n')[0].trim();
+        if (text) {
+          text = text.replace(/^by\s+/i, '').trim();
+          if (text.length > 2 && text.length < 80 && !text.toLowerCase().includes('http')) {
+            return text;
+          }
+        }
+      }
+    }
+
+    const headingsAndParas = Array.from(document.querySelectorAll('p, div, span, header')).slice(0, 20);
+    for (const el of headingsAndParas) {
+      const txt = el.innerText ? el.innerText.trim() : '';
+      const match = txt.match(/^by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+and\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)*)/i);
+      if (match && match[1] && match[1].length < 80) {
+        return match[1].trim();
+      }
+    }
+
+    return null;
+  }
+
+  function createNotePayload(type, selectionText) {
+    const rawTitle = document.title || 'Source';
+    let cleanTitle = getCleanTitle();
+    const url = window.location.href;
+    const domain = getCleanDomain(window.location.hostname);
+    
+    const today = new Date();
+    const year = today.getFullYear();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthDay = `${monthNames[today.getMonth()]} ${today.getDate()}`;
+    const defaultFullDate = `${year}, ${monthDay}`;
+
+    let pubDate = defaultFullDate;
+    try {
+      const dateMeta = document.querySelector('meta[property="article:published_time"], meta[name="date"], meta[name="publication_date"], time[datetime]');
+      if (dateMeta) {
+        const rawDate = dateMeta.content || dateMeta.getAttribute('datetime') || dateMeta.innerText;
+        if (rawDate) {
+          const d = new Date(rawDate);
+          if (!isNaN(d.getTime())) {
+            const pYear = d.getFullYear();
+            const pMonthDay = `${monthNames[d.getMonth()]} ${d.getDate()}`;
+            pubDate = `${pYear}, ${pMonthDay}`;
+          }
+        }
+      }
+    } catch(e) {}
+
+    let author = extractRealAuthorFromPage();
+
+    if (author) {
+      author = cleanAuthorByline(author);
+      if (!isValidAuthorName(author)) {
+        author = null;
+      } else {
+        const parsed = parseAuthorNames(author);
+        if (parsed.length > 5) {
+          author = null;
+        }
+      }
+    }
+
+    if (!author) {
+      if (isNewsWebsite(domain)) {
+        author = ''; // Forces title-first fallback for standard news websites
+      } else {
+        const groupAuth = getGroupAuthor(domain, url);
+        if (groupAuth) {
+          author = groupAuth;
+        } else {
+          author = domain;
+        }
+      }
+    }
+
+    // Homepage Root Detector: Identifies if we are on the homepage or localized path index
+    let isHomepage = false;
+    try {
+      const urlObj = new URL(url);
+      const pathClean = urlObj.pathname.trim().replace(/\/+$/, '');
+      if (pathClean === '' || pathClean === '/' || /^\/(en|es|fr|de|ja|it|us|world)$/i.test(pathClean)) {
+        isHomepage = true;
+      }
+    } catch(e) {}
+
+    const siteName = getSiteName(domain, url);
+    if (isHomepage) {
+      cleanTitle = siteName;
+      const groupAuth = getGroupAuthor(domain, url);
+      author = groupAuth || siteName;
+    }
+
+    // Secondary sub-domain parsing to target specific profiles
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (domain === 'github' && pathParts.length > 0) {
+        author = pathParts[0];
+        if (pathParts.length >= 2) cleanTitle = pathParts[1];
+        else cleanTitle = `GitHub Profile of ${author}`;
+      } else if ((domain === 'x' || domain === 'twitter') && pathParts.length > 0) {
+        author = pathParts[0];
+      } else if (domain === 'youtube' && pathParts.length > 0 && pathParts[0].startsWith('@')) {
+        author = pathParts[0].substring(1);
+      }
+    } catch(e) {}
+
+    return {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type: type,
+      text: selectionText || '',
+      title: rawTitle,
+      cleanTitle: cleanTitle,
+      author: author,
+      url: url,
+      domain: domain,
+      year: year,
+      fullDate: pubDate,
+      accessDate: `${today.getDate()} ${monthNames[today.getMonth()].slice(0, 3)}. ${year}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+    };
+  }
+
+  function parseAuthorNames(authorStr) {
+    if (!authorStr || !isValidAuthorName(authorStr)) return [];
+    let str = authorStr.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
+    if (!str) return [];
+
+    let names = [];
+    if (str.includes(' and ') || str.includes(' & ')) {
+      let temp = str.replace(/,?\s+(?:and|&)\s+/gi, ' ||| ');
+      let parts = temp.split(' ||| ');
+      
+      parts.forEach(part => {
+        if (part.includes(',')) {
+          const commaParts = part.split(',').map(s => s.trim()).filter(Boolean);
+          if (commaParts.length === 2 && !commaParts[0].includes(' ') && !commaParts[1].includes(' ')) {
+            names.push(`${commaParts[1]} ${commaParts[0]}`);
+          } else {
+            commaParts.forEach(p => names.push(p));
+          }
+        } else {
+          names.push(part.trim());
+        }
+      });
+    } else if (str.includes(';')) {
+      names = str.split(';').map(s => s.trim()).filter(Boolean);
+    } else if (str.includes(',')) {
+      const commaParts = str.split(',').map(s => s.trim()).filter(Boolean);
+      if (commaParts.length % 2 === 0 && commaParts.every(p => !p.includes(' '))) {
+        for (let i = 0; i < commaParts.length; i += 2) {
+          names.push(`${commaParts[i+1]} ${commaParts[i]}`);
+        }
+      } else {
+        names = commaParts;
+      }
+    } else {
+      names = [str];
+    }
+
+    const uniqueNames = [...new Set(names)].filter(n => n.length > 1);
+    
+    if (uniqueNames.length > 5) {
+      return [];
+    }
+
+    return uniqueNames;
+  }
+
+  function formatSingleAuthorAPA(name) {
+    if (!name) return '';
+    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
+    if (!trimmed) return '';
+
+    const orgKeywords = ['white house', 'department', 'ministry', 'organization', 'commission', 'agency', 'foundation', 'center', 'institute', 'bureau', 'office', 'house', 'senate', 'parliament', 'government', 'association', 'society', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
+    if (orgKeywords.some(kw => trimmed.toLowerCase().includes(kw)) || trimmed.toLowerCase().startsWith('the ')) {
+      return trimmed;
+    }
+
+    if (trimmed.includes(',')) {
+      const parts = trimmed.split(',');
+      const lastName = parts[0].trim();
+      const firstParts = parts[1].trim().split(/[\s\.-]+/);
+      const initials = firstParts.map(p => {
+        const clean = p.replace(/[^a-zA-Z]/g, '');
+        return clean ? clean.charAt(0).toUpperCase() + '.' : '';
+      }).filter(Boolean).join(' ');
+      return `${lastName}, ${initials}`;
+    }
+
+    const words = trimmed.split(/\s+/);
+    if (words.length >= 2) {
+      const lastName = words[words.length - 1];
+      const initials = words.slice(0, -1).map(w => {
+        const clean = w.replace(/[^a-zA-Z]/g, '');
+        return clean ? clean.charAt(0).toUpperCase() + '.' : '';
+      }).filter(Boolean).join(' ');
+
+      return `${lastName}, ${initials}`;
+    }
+
+    return trimmed;
+  }
+
+  function formatAPAAuthor(authorStr) {
+    if (!authorStr || authorStr.length < 2) return '';
+
+    const orgKeywords = ['white house', 'department', 'ministry', 'organization', 'commission', 'agency', 'foundation', 'center', 'institute', 'bureau', 'office', 'house', 'senate', 'parliament', 'government', 'association', 'society', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
+    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
+      return authorStr.replace(/\.$/, '');
+    }
+
+    const names = parseAuthorNames(authorStr);
+    const formatted = names.map(formatSingleAuthorAPA).filter(Boolean);
+
+    if (formatted.length === 0) return '';
+    if (formatted.length === 1) return formatted[0];
+    if (formatted.length === 2) return `${formatted[0]}, & ${formatted[1]}`;
+
+    const allExceptLast = formatted.slice(0, -1).join(', ');
+    const lastAuthor = formatted[formatted.length - 1];
+    return `${allExceptLast}, & ${lastAuthor}`;
+  }
+
+  function formatSingleAuthorMLA(name) {
+    if (!name) return '';
+    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
+    if (!trimmed) return '';
+
+    if (trimmed.includes(',')) return trimmed;
+
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 2) {
+      const lastName = parts[parts.length - 1];
+      const firstName = parts.slice(0, parts.length - 1).join(' ');
+      return `${lastName}, ${firstName}`;
+    }
+
+    return trimmed;
+  }
+
+  function formatMLAAuthor(authorStr) {
+    if (!authorStr || authorStr.length < 2) return '';
+
+    const orgKeywords = ['white house', 'department', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'bureau', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
+    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
+      return `${authorStr.replace(/\.$/, '')}. `;
+    }
+
+    const names = parseAuthorNames(authorStr);
+    if (names.length === 0) return '';
+
+    if (names.length === 1) {
+      const parts = names[0].split(/\s+/);
+      if (parts.length >= 2) {
+        return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}. `;
+      }
+      return `${names[0]}. `;
+    }
+
+    if (names.length === 2) {
+      const parts1 = names[0].split(/\s+/);
+      const firstAuthor = parts1.length >= 2 ? `${parts1[parts1.length - 1]}, ${parts1.slice(0, -1).join(' ')}` : names[0];
+      return `${firstAuthor}, and ${names[1]}. `;
+    }
+
+    const firstAuthor = formatSingleAuthorMLA(names[0]);
+    return `${firstAuthor}, et al. `;
+  }
+
+  function formatChicagoSingleAuthorFirst(name) {
+    if (!name) return '';
+    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
+    if (!trimmed) return '';
+    if (trimmed.includes(',')) return trimmed;
+
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 2) {
+      const lastName = parts[parts.length - 1];
+      const firstName = parts.slice(0, parts.length - 1).join(' ');
+      return `${lastName}, ${firstName}`;
+    }
+    return trimmed;
+  }
+
+  function formatChicagoSingleAuthorNormal(name) {
+    if (!name) return '';
+    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
+    if (!trimmed) return '';
+    if (trimmed.includes(',')) {
+      const parts = trimmed.split(',');
+      return `${parts[1].trim()} ${parts[0].trim()}`;
+    }
+    return trimmed;
+  }
+
+  function formatChicagoAuthor(authorStr) {
+    if (!authorStr || authorStr.length < 2) return '';
+
+    const orgKeywords = ['white house', 'department', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'bureau', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
+    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
+      return `${authorStr.replace(/\.$/, '')}. `;
+    }
+
+    const names = parseAuthorNames(authorStr);
+    if (names.length === 0) return '';
+
+    if (names.length === 1) {
+      const parts = names[0].split(/\s+/);
+      if (parts.length >= 2) {
+        return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}. `;
+      }
+      return `${names[0]}. `;
+    }
+
+    if (names.length === 2) {
+      const first = formatChicagoSingleAuthorFirst(names[0]);
+      const second = formatChicagoSingleAuthorNormal(names[1]);
+      return `${first}, and ${second}. `;
+    }
+
+    const first = formatChicagoSingleAuthorFirst(names[0]);
+    const middle = names.slice(1, -1).map(formatChicagoSingleAuthorNormal).join(', ');
+    const last = formatChicagoSingleAuthorNormal(names[names.length - 1]);
+
+    if (middle) {
+      return `${first}, ${middle}, and ${last}. `;
+    } else {
+      return `${first}, and ${last}. `;
+    }
+  }
+
+  function formatMLADate(fullDate) {
+    if (!fullDate) return '';
+    const fullDateStr = String(fullDate);
+    const mShort = {
+      'january': 'Jan.', 'february': 'Feb.', 'march': 'Mar.', 'april': 'Apr.',
+      'may': 'May', 'june': 'June', 'july': 'July', 'august': 'Aug.',
+      'september': 'Sept.', 'october': 'Oct.', 'november': 'Nov.', 'december': 'Dec.'
+    };
+
+    try {
+      const d = new Date(fullDateStr.replace(',', ''));
+      if (!isNaN(d.getTime())) {
+        const day = d.getDate();
+        const monthFull = d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase();
+        const monthAbbr = mShort[monthFull] || d.toLocaleDateString('en-US', { month: 'short' });
+        const year = d.getFullYear();
+        return `${day} ${monthAbbr} ${year}`;
+      }
+    } catch(e) {}
+
+    return fullDateStr;
+  }
+
+  function formatChicagoDate(fullDate, fallbackYear) {
+    if (!fullDate) return `${fallbackYear}.`;
+    const fullDateStr = String(fullDate);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    try {
+      const d = new Date(fullDateStr.replace(',', ''));
+      if (!isNaN(d.getTime())) {
+        const day = d.getDate();
+        const month = monthNames[d.getMonth()];
+        const year = d.getFullYear();
+        return `${month} ${day}, ${year}.`;
+      }
+    } catch(e) {}
+
+    return `${fullDateStr}.`;
+  }
+
+  function getMLAUrl(url) {
+    if (!url) return '';
+    return String(url).replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  }
 
   // --- Scroll & Pointer Lock Helpers ---
 
@@ -119,28 +809,55 @@
     }
   }
 
+  function preventKeyboardScroll(e) {
+    const keys = ['Space', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'End', 'Home'];
+    if (isWheelActive && keys.includes(e.code)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  }
+
   function lockScrollAndPointer() {
-    if (document.body) document.body.style.setProperty('overflow', 'hidden', 'important');
-    if (document.documentElement) document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+    if (document.body) {
+      originalBodyOverflow = document.body.style.overflow;
+      document.body.style.setProperty('overflow', 'hidden', 'important');
+    }
+    if (document.documentElement) {
+      originalDocOverflow = document.documentElement.style.overflow;
+      document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+    }
 
     document.documentElement.style.setProperty('cursor', 'pointer', 'important');
     if (document.body) document.body.style.setProperty('cursor', 'pointer', 'important');
     hostDiv.style.setProperty('cursor', 'pointer', 'important');
 
+    // Add locking listeners globally across document and window structures
     window.addEventListener('wheel', preventScrollEvent, { capture: true, passive: false });
     document.addEventListener('wheel', preventScrollEvent, { capture: true, passive: false });
     window.addEventListener('touchmove', preventScrollEvent, { capture: true, passive: false });
     document.addEventListener('touchmove', preventScrollEvent, { capture: true, passive: false });
+    window.addEventListener('keydown', preventKeyboardScroll, { capture: true, passive: false });
+    
+    // Add defensive fallback overlay listener directly inside the shadow root container
+    wheelContainer.addEventListener('wheel', preventScrollEvent, { capture: true, passive: false });
   }
 
   function unlockScrollAndPointer() {
-    // Explicit property removal guarantees original browser scrollbar & styles restore cleanly
     if (document.body) {
-      document.body.style.removeProperty('overflow');
+      if (originalBodyOverflow) {
+        document.body.style.setProperty('overflow', originalBodyOverflow);
+      } else {
+        document.body.style.removeProperty('overflow');
+      }
       document.body.style.removeProperty('cursor');
     }
     if (document.documentElement) {
-      document.documentElement.style.removeProperty('overflow');
+      if (originalDocOverflow) {
+        document.documentElement.style.setProperty('overflow', originalDocOverflow);
+      } else {
+        document.documentElement.style.removeProperty('overflow');
+      }
       document.documentElement.style.removeProperty('cursor');
     }
     hostDiv.style.removeProperty('cursor');
@@ -149,14 +866,15 @@
     document.removeEventListener('wheel', preventScrollEvent, { capture: true });
     window.removeEventListener('touchmove', preventScrollEvent, { capture: true });
     document.removeEventListener('touchmove', preventScrollEvent, { capture: true });
+    window.removeEventListener('keydown', preventKeyboardScroll, { capture: true });
+    
+    wheelContainer.removeEventListener('wheel', preventScrollEvent, { capture: true });
   }
 
   // --- Mouse Event Listeners ---
 
   window.addEventListener('mousedown', (e) => {
-    if (e.button !== 1) return; // Middle mouse click only
-
-    // DO NOT call e.preventDefault() here! Allows native quick-click middle-scroller to work.
+    if (e.button !== 1) return;
 
     originX = e.clientX;
     originY = e.clientY;
@@ -174,7 +892,7 @@
     e.preventDefault();
     e.stopPropagation();
 
-    calculateQuadrant(e.clientX, e.clientY);
+    calculateSector(e.clientX, e.clientY);
   }, true);
 
   window.addEventListener('mouseup', (e) => {
@@ -195,7 +913,6 @@
     }
   }, true);
 
-  // Prevent middle click autoscroll or link open ONLY if wheel gesture was activated
   window.addEventListener('auxclick', (e) => {
     if (e.button === 1 && preventNextAuxClick) {
       e.preventDefault();
@@ -204,15 +921,14 @@
     }
   }, true);
 
-  // --- 2-Ring Radial Trigonometry Math ---
+  // --- 8-Octant Radial Trigonometry Math ---
 
-  function calculateQuadrant(mouseX, mouseY) {
+  function calculateSector(mouseX, mouseY) {
     const dx = mouseX - originX;
     const dy = originY - mouseY; // Invert Y axis
 
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Neutral Center Zone
     if (distance <= NEUTRAL_RADIUS_PX) {
       updateActiveUI('NEUTRAL');
       return;
@@ -222,24 +938,26 @@
     let deg = angleRad * (180 / Math.PI);
     if (deg < 0) deg += 360;
 
-    // Directional Mapping (UP, RIGHT, BOTTOM, LEFT)
-    let direction = 'UP';
-    if (deg >= 45 && deg < 135) {
-      direction = 'UP';
-    } else if (deg >= 135 && deg < 225) {
-      direction = 'LEFT';
-    } else if (deg >= 225 && deg < 315) {
-      direction = 'BOTTOM';
-    } else if (deg >= 315 || deg < 45) {
-      direction = 'RIGHT';
+    let sector = 'N';
+    if (deg >= 67.5 && deg < 112.5) {
+      sector = 'N';
+    } else if (deg >= 22.5 && deg < 67.5) {
+      sector = 'NE';
+    } else if (deg >= 337.5 || deg < 22.5) {
+      sector = 'E';
+    } else if (deg >= 292.5 && deg < 337.5) {
+      sector = 'SE';
+    } else if (deg >= 247.5 && deg < 292.5) {
+      sector = 'S';
+    } else if (deg >= 202.5 && deg < 247.5) {
+      sector = 'SW';
+    } else if (deg >= 157.5 && deg < 202.5) {
+      sector = 'W';
+    } else if (deg >= 112.5 && deg < 157.5) {
+      sector = 'NW';
     }
 
-    // Determine Ring Layer by Distance
-    if (distance <= INNER_RADIUS_MAX_PX) {
-      updateActiveUI(`INNER_${direction}`);
-    } else {
-      updateActiveUI(`OUTER_${direction}`);
-    }
+    updateActiveUI(sector);
   }
 
   function updateActiveUI(sector) {
@@ -269,278 +987,121 @@
     unlockScrollAndPointer();
   }
 
-  // --- Actions Handler ---
+  // --- RESEARCH ACTIONS EXECUTION ---
 
   function executeAction(sector) {
     switch (sector) {
-      // INNER RING ACTIONS
-      case 'INNER_UP': handleDuplicateTab(); break;
-      case 'INNER_RIGHT': handleFocusSearch(); break;
-      case 'INNER_BOTTOM': handleCopyMarkdown(); break;
-      case 'INNER_LEFT': handleTranslate(); break;
-
-      // OUTER RING ACTIONS
-      case 'OUTER_UP': handleJumpToTop(); break;
-      case 'OUTER_RIGHT': handleToggleMute(); break;
-      case 'OUTER_BOTTOM': handleCopyPlainLink(); break;
-      case 'OUTER_LEFT': handleReopenTab(); break;
-
+      case 'N': handleScholarSearch(); break;
+      case 'NE': handlePubMedSearch(); break;
+      case 'E': handleAppendNote(); break;
+      case 'SE': handleFormatCitation(); break;
+      case 'S': handleOpenWorkspace(); break;
+      case 'SW': handleTranslate(); break;
+      case 'W': handleTitleAndURL(); break;
+      case 'NW': handleCopyPlusSource(); break;
       case 'NEUTRAL': default: break;
     }
   }
 
-  // --- ACTION IMPLEMENTATIONS ---
-
-  function handleDuplicateTab() {
-    chrome.runtime.sendMessage({ type: 'DUPLICATE_TAB' });
-    showToast('Duplicating tab...');
-  }
-
-  function handleJumpToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast('Jumped to top of page!');
-  }
-
-  function handleToggleMute() {
-    chrome.runtime.sendMessage({ type: 'TOGGLE_MUTE_TAB' });
-    showToast('Mute toggled!');
-  }
-
-  function handleCopyPlainLink() {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      showToast('Page URL copied to clipboard!');
-    }).catch(() => {
-      showToast('Failed to copy URL');
+  function saveNoteToWorkspace(noteEntry, toastMessage) {
+    chrome.storage.local.get({ researchNotes: [] }, (result) => {
+      const notes = result.researchNotes;
+      notes.push(noteEntry);
+      chrome.storage.local.set({ researchNotes: notes }, () => {
+        showToast(toastMessage || 'Note saved to Workspace!');
+      });
     });
   }
 
-  function handleReopenTab() {
-    chrome.runtime.sendMessage({ type: 'REOPEN_CLOSED_TAB' });
-    showToast('Reopening closed tab...');
+  function handleScholarSearch() {
+    const query = window.getSelection().toString().trim() || getCleanTitle();
+    chrome.runtime.sendMessage({ type: 'SEARCH_SCHOLAR', payload: { query } });
+    showToast('Searching Google Scholar...');
   }
 
-  // Universal Shadow DOM Deep Search Helper
-  function findDeepElement(selectors, root = document) {
-    for (const selector of selectors) {
-      try {
-        const el = root.querySelector(selector);
-        if (el) return el;
-      } catch (e) {}
-    }
-
-    const allElements = root.querySelectorAll('*');
-    for (const el of allElements) {
-      if (el.shadowRoot) {
-        const found = findDeepElement(selectors, el.shadowRoot);
-        if (found) return found;
-      }
-    }
-
-    return null;
+  function handlePubMedSearch() {
+    const query = window.getSelection().toString().trim() || getCleanTitle();
+    chrome.runtime.sendMessage({ type: 'SEARCH_PUBMED', payload: { query } });
+    showToast('Searching PubMed...');
   }
 
-  function createComposedEvent(type, EventClass = PointerEvent) {
-    return new EventClass(type, {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      view: window,
-      pointerId: 1,
-      isPrimary: true,
-      button: 0,
-      buttons: 1
-    });
-  }
-
-  function handleRedditSearch() {
-    console.log('[Action Wheel] Custom Reddit Search Handler executing...');
-
-    const redditHosts = document.querySelectorAll('shreddit-search-bar, faceplate-search-input, reddit-search-large, reddit-header-large, #search-input');
-
-    let targetInput = null;
-
-    for (const host of redditHosts) {
-      const shadow = host.shadowRoot;
-      if (shadow) {
-        const shadowTrigger = shadow.querySelector('label, button, [part="container"], .input-container, .text-area-wrapper');
-        if (shadowTrigger) {
-          shadowTrigger.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
-          shadowTrigger.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
-          shadowTrigger.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
-          shadowTrigger.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
-          shadowTrigger.dispatchEvent(createComposedEvent('click', MouseEvent));
-        }
-
-        const input = shadow.querySelector('input[name="q"], textarea[name="q"], input, textarea');
-        if (input) {
-          targetInput = input;
-          break;
-        }
-      }
-    }
-
-    if (!targetInput) {
-      targetInput = findDeepElement([
-        'faceplate-search-input input',
-        'faceplate-search-input textarea',
-        'shreddit-search-bar input',
-        'shreddit-search-bar textarea',
-        'input[name="q"]',
-        'textarea[name="q"]'
-      ]);
-    }
-
-    if (targetInput) {
-      const hostNode = targetInput.getRootNode()?.host;
-      if (hostNode) {
-        hostNode.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
-        hostNode.dispatchEvent(createComposedEvent('click', MouseEvent));
-      }
-
-      if (typeof targetInput.scrollIntoView === 'function') {
-        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      targetInput.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
-      targetInput.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
-      targetInput.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
-      targetInput.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
-      targetInput.dispatchEvent(createComposedEvent('click', MouseEvent));
-
-      targetInput.focus();
-      targetInput.dispatchEvent(new Event('focusin', { bubbles: true, composed: true }));
-
-      if (typeof targetInput.select === 'function') {
-        targetInput.select();
-      }
-
-      showToast('Reddit search focused!');
-      return true;
-    }
-
-    const slashOpts = { key: '/', code: 'Slash', keyCode: 191, which: 191, bubbles: true, cancelable: true, composed: true };
-    window.dispatchEvent(new KeyboardEvent('keydown', slashOpts));
-    document.dispatchEvent(new KeyboardEvent('keydown', slashOpts));
-    showToast('Reddit search triggered!');
-    return true;
-  }
-
-  function triggerFullFocus(el) {
-    if (!el) return false;
-
-    if (typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    let curr = el.getRootNode();
-    while (curr && curr.host) {
-      curr.host.dispatchEvent(createComposedEvent('click', MouseEvent));
-      curr = curr.host.getRootNode();
-    }
-
-    el.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
-    el.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
-    el.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
-    el.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
-    el.dispatchEvent(createComposedEvent('click', MouseEvent));
-
-    el.focus();
-    el.dispatchEvent(new Event('focusin', { bubbles: true, composed: true }));
-
-    if (typeof el.select === 'function') {
-      el.select();
-    } else if (typeof el.setSelectionRange === 'function') {
-      el.setSelectionRange(0, el.value ? el.value.length : 0);
-    }
-
-    return true;
-  }
-
-  function handleFocusSearch() {
-    const isReddit = window.location.hostname.includes('reddit.com');
-
-    if (isReddit) {
-      handleRedditSearch();
-      return;
-    }
-
-    const searchSelectors = [
-      'textarea[name="q"]',
-      'input[name="q"]',
-      'textarea[part="control"]',
-      'input[type="search"]',
-      'input[name*="search" i]',
-      'textarea[name*="search" i]',
-      'input[placeholder*="search" i]',
-      'textarea[placeholder*="search" i]',
-      'textarea[placeholder*="Find" i]',
-      'input[aria-label*="search" i]',
-      '[role="searchbox"]'
-    ];
-
-    const searchInput = findDeepElement(searchSelectors);
-
-    if (searchInput) {
-      triggerFullFocus(searchInput);
-      showToast('Search focused!');
-      return;
-    }
-
-    const slashEvent = new KeyboardEvent('keydown', {
-      key: '/',
-      code: 'Slash',
-      keyCode: 191,
-      which: 191,
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    });
-    
-    document.dispatchEvent(slashEvent);
-    showToast('Search triggered!');
-  }
-
-  function handleCopyMarkdown() {
+  function handleAppendNote() {
     const selection = window.getSelection().toString().trim();
-    const title = document.title || 'Untitled Page';
-    const url = window.location.href;
+    const cleanTitle = getCleanTitle();
+    const noteText = selection || `Bookmark: ${cleanTitle}`;
 
-    let markdown = '';
-    if (selection) {
-      markdown = `> ${selection}\n\n[${title}](${url})`;
-    } else {
-      markdown = `[${title}](${url})`;
-    }
+    const payload = createNotePayload('NOTE', noteText);
+    saveNoteToWorkspace(payload, 'Note appended to Workspace!');
+  }
 
-    navigator.clipboard.writeText(markdown).then(() => {
-      showToast('Markdown link copied to clipboard!');
-    }).catch(() => {
-      showToast('Failed to copy to clipboard');
+  function handleFormatCitation() {
+    chrome.storage.local.get({ citationStyle: 'APA' }, (res) => {
+      const style = res.citationStyle || 'APA';
+      const payload = createNotePayload('CITATION', '');
+      const siteName = getSiteName(payload.domain, payload.url);
+
+      let citationText = '';
+      if (style === 'MLA') {
+        const mlaAuthor = formatMLAAuthor(payload.author);
+        const mlaDate = formatMLADate(payload.fullDate);
+        const mlaUrl = getMLAUrl(payload.url);
+        const mlaDateStr = mlaDate ? `${mlaDate}, ` : '';
+        const titleCasedTitle = toTitleCase(payload.cleanTitle);
+
+        citationText = `${mlaAuthor}"${titleCasedTitle}." *${siteName}*, ${mlaDateStr}${mlaUrl}.`;
+      } else if (style === 'Chicago') {
+        const chicagoAuthor = formatChicagoAuthor(payload.author);
+        const cleanChicagoAuthor = chicagoAuthor.replace(/\.+$/, '').trim();
+        const chicagoDate = formatChicagoDate(payload.fullDate, payload.year);
+        const titleCasedTitle = toTitleCase(payload.cleanTitle);
+
+        const publisherString = (cleanChicagoAuthor.toLowerCase() === siteName.toLowerCase()) ? '' : `${siteName}, `;
+
+        citationText = `${chicagoAuthor}"${titleCasedTitle}." ${publisherString}${chicagoDate} ${payload.url}`;
+      } else if (style === 'BibTeX') {
+        const cleanAuthorKey = payload.author.toLowerCase().replace(/[^a-z0-9]/g, '') || 'source';
+        const bibKey = `${cleanAuthorKey}_${payload.domain}_${payload.year}`;
+
+        citationText = `@misc{${bibKey},\n  author       = {${payload.author}},\n  title        = {${payload.cleanTitle}},\n  year         = {${payload.year}},\n  url          = {${payload.url}},\n  howpublished = {\\url{${payload.url}}}\n}`;
+      } else {
+        // Official APA 7th Edition Format
+        const rawApaAuthor = formatAPAAuthor(payload.author);
+        const cleanApaAuthor = rawApaAuthor.replace(/\.+$/, '');
+        const sentenceTitle = ProperNounEngine.toSentenceCase(payload.cleanTitle);
+
+        if (!cleanApaAuthor) {
+          citationText = `${sentenceTitle}. (${payload.fullDate}). *${siteName}*. ${payload.url}`;
+        } else {
+          const siteString = (cleanApaAuthor.toLowerCase() === siteName.toLowerCase()) ? '' : `*${siteName}*. `;
+          citationText = `${cleanApaAuthor}. (${payload.fullDate}). ${sentenceTitle}. ${siteString}${payload.url}`;
+        }
+      }
+
+      payload.text = citationText;
+
+      navigator.clipboard.writeText(citationText).then(() => {
+        saveNoteToWorkspace(payload, `${style} Citation copied & saved!`);
+      });
     });
+  }
+
+  function handleOpenWorkspace() {
+    chrome.runtime.sendMessage({ type: 'OPEN_RESEARCH_PANEL' });
+    showToast('Opening Research Workspace...');
   }
 
   function handleTranslate() {
-    const textSelectors = [
-      'h1', 'h2', 'h3', 'p', 
-      '#video-title', 'yt-formatted-string', 
-      'shreddit-post', 'span.title', 'a[id*="title"]'
-    ];
-
+    const textSelectors = ['h1', 'h2', 'h3', 'p', 'article', 'span.title'];
     const elements = Array.from(document.querySelectorAll(textSelectors.join(',')))
-      .filter(el => {
-        const txt = el.innerText ? el.innerText.trim() : '';
-        return txt.length > 3 && el.offsetWidth > 0 && el.offsetHeight > 0;
-      })
+      .filter(el => el.innerText && el.innerText.trim().length > 3 && el.offsetWidth > 0)
       .slice(0, 20);
 
     if (elements.length === 0) {
-      showToast('No readable text found to translate.');
+      showToast('No text found to translate.');
       return;
     }
 
     const textList = elements.map(el => el.innerText.trim());
-
     showToast('Translating page text under the hood...');
 
     chrome.runtime.sendMessage({
@@ -557,6 +1118,34 @@
       } else {
         showToast('Translation failed.');
       }
+    });
+  }
+
+  function handleTitleAndURL() {
+    const cleanTitle = getCleanTitle();
+    const url = window.location.href;
+    const markdownLink = `[${cleanTitle}](${url})`;
+
+    navigator.clipboard.writeText(markdownLink).then(() => {
+      showToast('Title + URL copied!');
+    });
+  }
+
+  function handleCopyPlusSource() {
+    const selection = window.getSelection().toString().trim();
+
+    if (!selection) {
+      showToast('Please select text on the page first to save a Quote!');
+      return;
+    }
+
+    const payload = createNotePayload('QUOTE', selection);
+    const textToCopy = `> ${selection}\n\nSource: [${payload.cleanTitle}](${payload.url})`;
+
+    payload.text = textToCopy;
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      saveNoteToWorkspace(payload, 'Quote + Source saved!');
     });
   }
 

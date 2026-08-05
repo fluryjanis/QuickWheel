@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "QuickWheel",
+  "name": "Research Wheel",
   "version": "1.0.0",
-  "description": "Radial mouse gesture wheel triggered by middle-click hold for instant context actions.",
+  "description": "Single-ring 8-action research gesture wheel and workspace panel for instant citations, notes, and searches.",
   "permissions": [
-    "sidePanel",
     "storage",
     "activeTab",
     "clipboardWrite",
-    "sessions"
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -16,9 +15,6 @@
   "background": {
     "service_worker": "background.js"
   },
-    "icons": {
-"48": "icon48.png"
-},
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -26,6 +22,11 @@
       "run_at": "document_idle"
     }
   ],
+
+     "icons": {
+     "48": "icon48.png"
+  },
+
   "side_panel": {
     "default_path": "sidepanel.html"
   },

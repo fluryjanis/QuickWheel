@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Action Wheel Side Panel</title>
+  <title>Research Workspace</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -15,27 +15,164 @@
       height: 100vh;
     }
     header {
-      margin-bottom: 16px;
-      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
       border-bottom: 1px solid #1e293b;
     }
-    h1 { font-size: 18px; font-weight: 700; color: #38bdf8; }
-    .meta { font-size: 12px; color: #64748b; margin-top: 4px; word-break: break-all; }
-    .content-box {
+    h1 { font-size: 15px; font-weight: 700; color: #38bdf8; }
+    
+    /* Header Copy All Button */
+    .copy-all-btn {
+      background: #334155;
+      color: #cbd5e1;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .copy-all-btn:hover {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    /* Citation Style Selector Bar */
+    .citation-style-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      background: #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+    }
+    .style-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .style-btn-group {
+      display: flex;
+      gap: 4px;
+    }
+    .style-btn {
+      background: #0f172a;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .style-btn:hover {
+      color: #f8fafc;
+      border-color: #475569;
+    }
+    .style-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+
+    .notes-container {
       flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .note-card {
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 8px;
       padding: 12px;
-      color: #cbd5e1;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.5;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      margin-bottom: 16px;
+      position: relative;
     }
+    .note-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .note-tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+    }
+
+    /* Individual Card Delete 'X' Button */
+    .delete-note-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .delete-note-btn:hover {
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .note-text {
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 8px;
+    }
+    .note-meta {
+      font-size: 10px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 4px;
+    }
+    .note-meta a { 
+      color: #64748b; 
+      text-decoration: none; 
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .note-meta a:hover { color: #38bdf8; }
+
+    /* Single Card Copy Button */
+    .copy-single-note-btn {
+      background: #334155;
+      color: #cbd5e1;
+      border: none;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .copy-single-note-btn:hover {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
     .actions { display: flex; gap: 8px; }
-    button {
+    .btn-main {
       flex: 1;
       background: #2563eb;
       color: white;
@@ -47,22 +184,48 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    button:hover { background: #1d4ed8; }
-    button.secondary { background: #334155; }
-    button.secondary:hover { background: #475569; }
+    .btn-main:hover { background: #1d4ed8; }
+    .btn-secondary {
+      flex: 1;
+      background: #334155;
+      color: #f8fafc;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-secondary:hover { background: #475569; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Action Wheel Workspace</h1>
-    <div class="meta" id="page-info">No context loaded</div>
+    <h1>🎓 Research Workspace</h1>
+    <button id="btn-copy-all" class="copy-all-btn">Copy All</button>
   </header>
 
-  <div class="content-box" id="content-display">Select text and gesture UP on the Action Wheel to send content here.</div>
+  <!-- Citation Format Selector Bar -->
+  <div class="citation-style-bar">
+    <span class="style-label">Format:</span>
+    <div class="style-btn-group">
+      <button class="style-btn active" data-style="APA">APA</button>
+      <button class="style-btn" data-style="MLA">MLA</button>
+      <button class="style-btn" data-style="Chicago">Chicago</button>
+      <button class="style-btn" data-style="BibTeX">BibTeX</button>
+    </div>
+  </div>
+
+  <div class="notes-container" id="notes-list">
+    <div class="note-card">
+      <div class="note-text" style="color: #64748b;">No research notes saved yet. Use 📝 Append Note or 📋 Quote + Source on the wheel to clip content here!</div>
+    </div>
+  </div>
 
   <div class="actions">
-    <button id="btn-copy">Copy Text</button>
-    <button id="btn-clear" class="secondary">Clear</button>
+    <button id="btn-export" class="btn-main">Export Markdown (.md)</button>
+    <button id="btn-clear" class="btn-secondary">Clear All</button>
   </div>
 
   <script src="sidepanel.js"></script>
