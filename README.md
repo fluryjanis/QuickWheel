@@ -59,7 +59,7 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 
 ## GitHub & Portfolio
 
-* **Source Code:** [fluryjanis/QuickWheel](https://github.com/fluryjanis/QuickWheel)
+* **Source Code:** [fluryjanis/QuickWheel](https://github.com/fluryjanis/ResearchWheel)
 * **Developer Portfolio:** [Frog1230 Portfolio](https://fluryjanis.github.io/frog1230.github.io/)
 * **Other Projects:** [MindShield](https://frog1230.itch.io/mind-shield) | [Content Chef](https://frog1230.itch.io/content-chef) | [Remind Me](https://frog1230.itch.io/remind-me)
 
