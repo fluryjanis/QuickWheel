@@ -1,38 +1,43 @@
-#  QuickWheel
+# 🧪 Research Wheel
 
-**QuickWheel** is a dual ring radial mouse gesture menu triggered by holding middle-click to lower the friction of daily browsing with instant flicks. Created and developed by **Janis Flury** (aka **Frog1230**).
+## What It Is
 
----
-
-##  What It Is
-
-Transform your browsing speed with **QuickWheel** a lightweight, 2-layer radial gesture wheel designed for power users. Simply hold the middle mouse button anywhere on a page to summon a sleek, dark-mode radial menu directly under your cursor.
-
-###  Key Features & Gestures
-
-####  Inner Ring Gestures (Close Flicks):
-* **Duplicate Tab (UP):** Instantly clone your active tab without right clicking tab headers.
-* **Focus Search (RIGHT):** Automatically finds and focuses search bars across Reddit, YouTube, X, Wikipedia, and complex Web Components.
-* **Copy Markdown (BOTTOM):** Copies selected text as a blockquote with a formatted page link for Notion, Obsidian, Discord, or GitHub.
-* **Translate Page (LEFT):** Translates webpage text in-place under the hood without opening extra tabs.
-
-####  Outer Ring Gestures (Far Flicks):
-* **Jump to Top (UP):** Smoothly scrolls straight back to the top of long feeds.
-* **Mute / Unmute Tab (RIGHT):** Silences noisy media tabs directly from anywhere on the screen.
-* **Copy Link (BOTTOM):** Copies the plain page URL directly to your clipboard.
-* **Reopen Tab (LEFT):** Instantly restores your last closed tab.
+Transform your research speed with **Research Wheel** an 8-action, single-ring radial gesture menu and workspace sidebar extension tailored natively for Mozilla Firefox under the WebExtensions Manifest V3 architecture. Created to eliminate browsing friction, it assists researchers, students, and writers with rapid content clipping, citation generation, translation, and academic searches directly from any webpage.
 
 ---
 
-##  Why QuickWheel?
+## Key Features & Gestures
 
-* **Preserves Native Autoscroll:** Quick middle clicks (<150ms) still trigger your browser's native middle click autoscroll normally.
-* **Frictionless Navigation:** Page scrolling automatically locks during gestures, and your cursor transforms into a smooth pointer.
-* **Isolated Shadow DOM UI:** Encapsulated styling ensures web page stylesheets never break the radial menu layout.
-* **100% Private:** Operates entirely on your device with zero data collection, analytics, or external tracking.
+### Features
+
+* **8-Octant Radial Wheel:** Drag-to-select radial menu triggered via middle-click. It provides immediate access to search actions, note clipping, and citation generation.
+* **Unified Workspace Sidebar:** A native Firefox sidebar that displays your saved notes, clipped quotes, and generated citations.
+* **Advanced Citation Engine:** Generates citations on-the-fly for APA 7th, MLA 9th, Chicago 17th, and BibTeX.
+* **Proper Noun Engine:** Applies sentence-casing rules to article titles while preserving proper nouns (e.g., U.S. states, political entities, names) and dynamically stripping possessives with straight, curly, or backtick apostrophes.
+* **Tagline and Brand Stripper:** Strips generic site tags (such as `: NPR` or `- NBC News`) from scraped webpage headers.
+* **Dual-Mode Homepage Detector:** Identifies root or localized homepages to cleanly override taglines with organizational group publishers.
+
+### Radial Wheel Gesture Mappings
+
+* **🎓 Scholar Search (NORTH):** Launches a Google Scholar search using your highlighted text (or webpage title if no text is selected).
+* **🧬 PubMed (NORTH-EAST):** Launches a PubMed search using your highlight or title.
+* **📝 Append Note (EAST):** Clips selected text directly to your Workspace sidebar as a general research note.
+* **📜 Citation (SOUTH-EAST):** Formats, saves, and copies a citation of the page using your active style preference (APA, MLA, Chicago, or BibTeX).
+* **📂 Workspace (SOUTH):** Commands the background script to open the sidebar. If Gecko blocking policies restrict programmatic opening, a page-level toast prompts you to use the shortcut.
+* **🌐 Translate (SOUTH-WEST):** Translates the leading text containers on the webpage in-place using translation engines.
+* **🔗 Title + URL (WEST):** Copies a clean markdown hyperlink `[Page Title](URL)` directly to your clipboard.
+* **📋 Quote + Source (NORTH-WEST):** Copies and saves highlighted text as a blockquote along with its markdown-formatted source attribution.
 
 ---
 
+## Why Research Wheel?
+
+* **Preserves Native Autoscroll:** Quick middle-clicks are handled smoothly without interfering with native browser scrolling behaviors.
+* **Autoscroll & Deselection Mitigation:** Synchronously captures text highlights on `mousedown` before Firefox can natively clear selection buffers or trigger autoscroll behavior.
+* **Scroll & Key Blocking:** Temporarily suspends scroll events, touch moves, and keyboard navigation keys (`Space`, `Arrows`, `PageUp`/`PageDown`) when the radial wheel is active to prevent shifts in webpage positioning.
+* **100% Private:** Operates entirely locally on your device with zero data collection, analytics, or external tracking.
+
+---
 ##  Screenshot
 
 *<img width="630" height="500" alt="Frame 9" src="https://github.com/user-attachments/assets/a7a59031-3d9e-4833-8a18-17669c420d6b" />*
@@ -59,13 +64,25 @@ Transform your browsing speed with **QuickWheel** a lightweight, 2-layer radial 
 
 ---
 
-##  Changelog
+## 📜 Changelog
 
-### Version 1.0.0 (Initial Release)
-* Dual ring radial gesture wheel triggered via middle mouse hold (>150ms).
+### Version 2.0.0 (The Research Edition Pivot)
+* **Rebranded to Research Wheel:** Pivoted project from QuickWheel to Research Wheel, focusing entirely on academic research, citation generation, and note clipping.
+* **8-Octant Radial Wheel:** Replaced generic tab navigation gestures with 8 dedicated research actions (Google Scholar, PubMed, Append Note, Citation Generator, Workspace Panel, Translate, Title + URL, Quote + Source).
+* **Native Workspace Side Panel:** Introduced a persistent sidebar UI to capture, review, organize, and manage saved quotes, notes, and citations.
+* **Advanced Citation Engine:** Added on-the-fly citation generation supporting **APA 7th**, **MLA 9th**, **Chicago 17th**, and **BibTeX** formats.
+* **Proper Noun Engine:** Built-in heuristics for intelligent title sentence-casing while preserving proper nouns, acronyms, and locations.
+* **Metadata & Scraper Guards:** Integrated automated cleaning to strip site taglines, filter out invalid author strings, and clean source metadata before serialization.
+* **Markdown Export:** Added one-click export of all collected research workspace notes to local `.md` files.
+* **Interaction Hardening:** Implemented synchronous `mousedown` selection capture and temporary input/scroll locks while the radial wheel is active to prevent page shifts and text deselection.
+
+---
+
+### Version 1.0.0 (Initial Release - QuickWheel)
+* Dual-ring radial gesture wheel triggered via middle mouse hold (>150ms).
 * Integrated 8 directional shortcuts (Tab duplicate/reopen, search focus, markdown clip, translate, scroll-to-top, tab mute, copy link).
 * Shadow DOM isolation for consistent rendering across complex sites.
-* Built in native autoscroll fallback mechanism.
+* Built-in native autoscroll fallback mechanism.
 
 ---
 
