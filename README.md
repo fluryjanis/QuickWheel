@@ -8,12 +8,12 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 ## Download Now
 * **Download:** *(https://github.com/fluryjanis/ResearchWheel/releases/tag/v2.0.0)*
 ---
-*<img width="236" height="214" alt="ResearchWheel - actions" src="https://github.com/user-attachments/assets/d5864076-cfa8-4204-9285-41cfdafa54f1" />* 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/917ae478-0fcb-4c8f-8e5d-6d56e0cdd9c8" width="48%" alt="ResearchWheel - format" />
-  <img src="https://github.com/user-attachments/assets/cd65fd8b-c2a8-46fb-83f2-5ffeb7de00cf" width="48%" alt="ResearchWheel - workspace" />
-</p>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d5864076-cfa8-4204-9285-41cfdafa54f1" width="28%" alt="ResearchWheel Actions" />
+  <img src="https://github.com/user-attachments/assets/917ae478-0fcb-4c8f-8e5d-6d56e0cdd9c8" width="28%" alt="ResearchWheel Format" />
+  <img src="https://github.com/user-attachments/assets/4233ca45-8d4f-414c-87dd-3bd722f1e80d" width="38%" alt="ResearchWheel Workspace" />
+</p>
 
 ---
 
@@ -47,11 +47,6 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 * **Autoscroll & Deselection Mitigation:** Synchronously captures text highlights on `mousedown` before Firefox can natively clear selection buffers or trigger autoscroll behavior.
 * **Scroll & Key Blocking:** Temporarily suspends scroll events, touch moves, and keyboard navigation keys (`Space`, `Arrows`, `PageUp`/`PageDown`) when the radial wheel is active to prevent shifts in webpage positioning.
 * **100% Private:** Operates entirely locally on your device with zero data collection, analytics, or external tracking.
-
----
-##  Screenshot
-
-*<img width="443" height="429" alt="image-removebg-preview (1)" src="https://github.com/user-attachments/assets/57c0bf91-60af-48ac-b4eb-6088dc5bbfb2" />*
 
 ---
 
