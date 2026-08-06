@@ -8,9 +8,12 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 ## Download Now
 * **Download:** *(https://github.com/fluryjanis/ResearchWheel/releases/tag/v2.0.0)*
 ---
-*<img width="458" height="428" alt="ResearchWheel - actions" src="https://github.com/user-attachments/assets/d5864076-cfa8-4204-9285-41cfdafa54f1" />* 
-*<img width="1523" height="885" alt="ResearchWheel - format" src="https://github.com/user-attachments/assets/917ae478-0fcb-4c8f-8e5d-6d56e0cdd9c8" />*
-*<img width="1755" height="969" alt="ResearchWheel - workspace" src="https://github.com/user-attachments/assets/cd65fd8b-c2a8-46fb-83f2-5ffeb7de00cf" />*
+*<img width="236" height="214" alt="ResearchWheel - actions" src="https://github.com/user-attachments/assets/d5864076-cfa8-4204-9285-41cfdafa54f1" />* 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/917ae478-0fcb-4c8f-8e5d-6d56e0cdd9c8" width="48%" alt="ResearchWheel - format" />
+  <img src="https://github.com/user-attachments/assets/cd65fd8b-c2a8-46fb-83f2-5ffeb7de00cf" width="48%" alt="ResearchWheel - workspace" />
+</p>
+
 
 ---
 
