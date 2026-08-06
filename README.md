@@ -5,6 +5,9 @@
 Transform your research speed with **Research Wheel** an 8-action, single-ring radial gesture menu and workspace sidebar extension tailored natively for Mozilla Firefox under the WebExtensions Manifest V3 architecture. Created to eliminate browsing friction, it assists researchers, students, and writers with rapid content clipping, citation generation, translation, and academic searches directly from any webpage.
 
 ---
+## Download Now
+* **Download:** *(https://github.com/fluryjanis/ResearchWheel/releases/tag/v2.0.0)*
+---
 
 ## Key Features & Gestures
 
@@ -46,7 +49,6 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 
 ##  Download Link
 
-* **Download:** *(https://github.com/fluryjanis/ResearchWheel/releases/tag/v2.0.0)*
 * **Download on itch.io:** *(https://frog1230.itch.io/quickwheel)*
 
 ### Chrome / Unpacked Installation:
