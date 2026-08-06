@@ -46,6 +46,7 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 
 ##  Download Link
 
+* **Download:** *(https://github.com/fluryjanis/ResearchWheel/releases/tag/v2.0.0)*
 * **Download on itch.io:** *(https://frog1230.itch.io/quickwheel)*
 
 ### Chrome / Unpacked Installation:
