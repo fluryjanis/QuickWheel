@@ -40,7 +40,7 @@ Transform your research speed with **Research Wheel** an 8-action, single-ring r
 ---
 ##  Screenshot
 
-*<img width="630" height="500" alt="Frame 9" src="https://github.com/user-attachments/assets/a7a59031-3d9e-4833-8a18-17669c420d6b" />*
+*<img width="443" height="429" alt="image-removebg-preview (1)" src="https://github.com/user-attachments/assets/57c0bf91-60af-48ac-b4eb-6088dc5bbfb2" />*
 
 ---
 
