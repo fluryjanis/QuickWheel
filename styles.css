@@ -1,4 +1,4 @@
-/* Research Wheel - Encapsulated Stylesheet */
+/* Quick Wheel - Encapsulated Stylesheet */
 
 :host {
   all: initial;
@@ -25,7 +25,7 @@
   pointer-events: auto;
   cursor: pointer !important;
   background: transparent;
-  overscroll-behavior: none !important; /* Blocks scroll chaining to host webpage */
+  overscroll-behavior: none !important;
 }
 
 .wheel-wrapper {
@@ -54,7 +54,7 @@
   fill: rgba(30, 41, 59, 0.65);
   stroke: rgba(255, 255, 255, 0.15);
   stroke-width: 1.5;
-  transition: fill 0.15s ease, transform 0.15s ease;
+  transition: fill 0.15s ease, stroke 0.15s ease;
   cursor: pointer !important;
 }
 
@@ -100,14 +100,14 @@
   color: #ffffff;
 }
 
-/* BALANCED 8-OCTANT ITEM POSITIONING (Radius = 98px from center 200,200) */
+/* BALANCED 8-OCTANT ITEM POSITIONING */
 .wheel-item {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100px;
+  width: 72px;
   text-align: center;
   pointer-events: none;
   color: #cbd5e1;
@@ -121,11 +121,23 @@
   cursor: pointer !important;
 }
 
-.wheel-item span {
-  font-size: 11px;
+.wheel-item .item-icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-bottom: 2px;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.wheel-item .item-text {
+  font-size: 10px;
   font-weight: 700;
-  white-space: nowrap;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  line-height: 1.15;
+  letter-spacing: 0.1px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  display: block;
+  max-width: 68px;
+  word-wrap: break-word;
 }
 
 .item-n  { top: 102px; left: 50%;    transform: translate(-50%, -50%); }
@@ -150,6 +162,7 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   font-size: 13px;
   font-weight: 500;
   transition: opacity 0.2s ease, transform 0.2s ease;

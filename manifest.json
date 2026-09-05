@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Research Wheel",
-  "version": "2.0.1",
-  "description": "Middle Mouse Button - Single-ring 8-action research gesture wheel and workspace panel for instant citations, notes, and searches.",
+  "name": "Quick Wheel",
+  "version": "1.1.0",
+  "description": "Triggered by middle-click hold or Alt+Q for instant tab, search, and context actions.",
   "permissions": [
-    "storage",
-    "activeTab",
-    "clipboardWrite",
-    "sidePanel"
+    "tabs",
+    "sessions",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -22,13 +21,17 @@
       "run_at": "document_idle"
     }
   ],
-
-     "icons": {
-     "48": "icon48.png"
+  "commands": {
+    "open-quick-wheel": {
+      "suggested_key": {
+        "default": "Alt+Q",
+        "mac": "Alt+Q"
+      },
+      "description": "Activate Quick Wheel radial menu"
+    }
   },
-
-  "side_panel": {
-    "default_path": "sidepanel.html"
+  "icons": {
+    "48": "icon48.png"
   },
   "web_accessible_resources": [
     {

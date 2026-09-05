@@ -1,22 +1,23 @@
 /**
- * Research Wheel - Chrome Content Script
- * 8-octant single-ring radial menu with Proper Noun Engine integration.
- * Includes 25ms hardware micro-switch debounce and native autoscroll killer.
+ * Quick Wheel - Content Script
+ * 8-Octant Single-Ring Radial Wheel
+ * Dual Trigger: Middle Mouse Button & Alt+Q Hotkey
+ * Fixes: Auto-repeat flicker suppression, IPC shortcut debounce, and pinned-mode stabilization.
  */
 
 (function () {
   'use strict';
 
-  // Prevent double-rendering by cleaning up any previous instances on reload
-  const existingHost = document.getElementById('research-wheel-extension-root');
-  if (existingHost) {
-    existingHost.remove();
-  }
+  // Clean up any stale host instances from previous script injections
+  const existingRoots = document.querySelectorAll('#research-wheel-extension-root, #quick-wheel-extension-root');
+  existingRoots.forEach(el => el.remove());
 
+  // Timing & Threshold Constants
   const HOLD_THRESHOLD_MS = 150;
-  const RELEASE_GRACE_MS = 25; // Debounce window for flaky / chattering middle switches
+  const RELEASE_GRACE_MS = 25;
   const NEUTRAL_RADIUS_PX = 35;
 
+  // Gesture State Variables
   let holdTimer = null;
   let releaseGraceTimer = null;
   let isWheelActive = false;
@@ -25,11 +26,19 @@
   let currentSector = 'NEUTRAL';
   let preventNextAuxClick = false;
 
-  let originalBodyOverflow = '';
-  let originalDocOverflow = '';
+  // Hotkey State Variables
+  let isKeyGesture = false;
+  let keyPressStartTime = 0;
+  let lastMouseX = window.innerWidth / 2;
+  let lastMouseY = window.innerHeight / 2;
 
+  // Non-destructive scroll lock coordinates (Prevents Twitter/X jump-to-top)
+  let lockedScrollX = 0;
+  let lockedScrollY = 0;
+
+  // Shadow DOM Setup
   const hostDiv = document.createElement('div');
-  hostDiv.id = 'research-wheel-extension-root';
+  hostDiv.id = 'quick-wheel-extension-root';
   document.documentElement.appendChild(hostDiv);
 
   const shadowRoot = hostDiv.attachShadow({ mode: 'open' });
@@ -59,36 +68,43 @@
         <span class="cancel-icon">✕</span>
       </div>
 
-      <!-- 8 BALANCED RESEARCH OCTANT ITEMS -->
+      <!-- 8 BALANCED ITEMS -->
       <div class="wheel-item item-n" data-sector="N">
-        <span>🎓 Scholar Search</span>
+        <span class="item-icon">⎘</span>
+        <span class="item-text">Duplicate Tab</span>
       </div>
       <div class="wheel-item item-ne" data-sector="NE">
-        <span>🧬 PubMed</span>
+        <span class="item-icon">▲</span>
+        <span class="item-text">Jump to Top</span>
       </div>
       <div class="wheel-item item-e" data-sector="E">
-        <span>📝 Append Note</span>
+        <span class="item-icon">🔍</span>
+        <span class="item-text">Focus Search</span>
       </div>
       <div class="wheel-item item-se" data-sector="SE">
-        <span>Citation</span>
+        <span class="item-icon">🔇</span>
+        <span class="item-text">Mute Tab</span>
       </div>
       <div class="wheel-item item-s" data-sector="S">
-        <span>📂 Workspace</span>
+        <span class="item-icon">📝</span>
+        <span class="item-text">Copy Markdown</span>
       </div>
       <div class="wheel-item item-sw" data-sector="SW">
-        <span>🌐 Translate</span>
+        <span class="item-icon">🔗</span>
+        <span class="item-text">Copy Link</span>
       </div>
       <div class="wheel-item item-w" data-sector="W">
-        <span>🔗 Title + URL</span>
+        <span class="item-icon">🌐</span>
+        <span class="item-text">Translate</span>
       </div>
       <div class="wheel-item item-nw" data-sector="NW">
-        <span>📋 Quote + Source</span>
+        <span class="item-icon">↺</span>
+        <span class="item-text">Reopen Tab</span>
       </div>
     </div>
   `;
 
   const wheelWrapper = wheelContainer.querySelector('.wheel-wrapper');
-
   const toast = document.createElement('div');
   toast.className = 'action-wheel-toast hidden';
 
@@ -99,732 +115,35 @@
   const items = shadowRoot.querySelectorAll('.wheel-item');
   const centerCircle = shadowRoot.querySelector('.wheel-center');
 
-  // --- PROPER NOUN ENGINE ---
-  const ProperNounEngine = {
-    lexicon: new Set([
-      'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia', 
-      'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 
-      'massachusetts', 'michigan', 'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new hampshire', 
-      'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 
-      'rhode island', 'south carolina', 'south dakota', 'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 
-      'west virginia', 'wisconsin', 'wyoming', 'puerto rico', 'guam', 'silver state',
-
-      'america', 'american', 'us', 'usa', 'united states', 'uk', 'united kingdom', 'britain', 'british', 'canada', 'canadian',
-      'mexico', 'mexican', 'china', 'chinese', 'russia', 'russian', 'japan', 'japanese', 'germany', 'german', 'france', 'french',
-      'italy', 'italian', 'spain', 'spanish', 'iran', 'iranian', 'iraq', 'iraqi', 'israel', 'israeli', 'palestine', 'palestinian',
-      'morocco', 'moroccan', 'ceuta', 'ukraine', 'ukrainian', 'syria', 'syrian', 'turkey', 'turkish', 'india', 'indian',
-      'midwest', 'middle east', 'strait of hormuz', 'hormuz', 'latin america', 'europe', 'european', 'asia', 'asian', 'africa', 'african',
-
-      'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
-      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-
-      'trump', 'biden', 'harris', 'obama', 'bush', 'clinton', 'reagan', 'mcconnell', 'pelosi', 'schumer', 'vance', 'walz',
-      'gop', 'republican', 'republicans', 'democrat', 'democrats', 'democratic', 'libertarian', 'conservative', 'liberal',
-      'white house', 'congress', 'senate', 'house', 'supreme court', 'pentagon', 'kremlin', 'capitol', 'parliament',
-      'un', 'united nations', 'nato', 'nasa', 'fbi', 'cia', 'epa', 'fda', 'cdc', 'who', 'gdpr',
-
-      'reuters', 'associated press', 'ap news', 'nbc', 'cnn', 'bbc', 'fox', 'cbs', 'abc', 'bloomberg', 'forbes',
-      'google', 'apple', 'microsoft', 'amazon', 'meta', 'facebook', 'instagram', 'twitter', 'tiktok', 'youtube',
-      'openai', 'chatgpt', 'claude', 'gemini', 'anthropic', 'nvidia', 'tesla', 'intel', 'amd', 'github', 'reddit',
-
-      'english', 'spanish', 'french', 'german', 'chinese', 'mandarin', 'japanese', 'russian', 'arabic', 'hindi',
-      
-      // Target case vocabulary and expansion rules
-      'comey', 'cesar', 'gastelum', 'abdul', 'el-sayed', 'elsayed', 'michigan'
-    ]),
-
-    isProperNoun(word) {
-      if (!word) return false;
-      let clean = word.replace(/['’‘`´]s$/i, '').replace(/s['’‘`´]$/i, '');
-      clean = clean.replace(/[^a-zA-Z0-9]/g, '');
-      if (!clean) return false;
-
-      if (clean.length >= 2 && clean === clean.toUpperCase() && !/^\d+$/.test(clean)) {
-        return true;
-      }
-
-      if (/[a-z][A-Z]/.test(clean) || /[A-Z].*[A-Z]/.test(clean)) {
-        return true;
-      }
-
-      if (this.lexicon.has(clean.toLowerCase())) {
-        return true;
-      }
-
-      return false;
-    },
-
-    toSentenceCase(str) {
-      if (!str) return 'Source';
-      const s = str.trim();
-      if (s.length === 0) return 'Source';
-
-      const words = s.split(/\s+/);
-      const result = [];
-
-      let capCount = 0;
-      let eligibleWordsCount = 0;
-      for (let i = 1; i < words.length; i++) {
-        const w = words[i].replace(/[^a-zA-Z]/g, '');
-        if (w.length > 0) {
-          eligibleWordsCount++;
-          if (w.charAt(0) === w.charAt(0).toUpperCase() && /[a-zA-Z]/.test(w.charAt(0))) {
-            capCount++;
-          }
-        }
-      }
-      const isAlreadySentenceCase = eligibleWordsCount > 0 && (capCount / eligibleWordsCount) <= 0.40;
-
-      for (let i = 0; i < words.length; i++) {
-        const rawWord = words[i];
-
-        if (i === 0) {
-          result.push(rawWord.charAt(0).toUpperCase() + rawWord.slice(1));
-          continue;
-        }
-
-        const prevWord = words[i - 1];
-        const isAfterBoundary = /[:;?—!]$/.test(prevWord);
-        if (isAfterBoundary) {
-          result.push(rawWord.charAt(0).toUpperCase() + rawWord.slice(1));
-          continue;
-        }
-
-        const cleanWord = rawWord.replace(/[^a-zA-Z0-9]/g, '');
-        const isCapitalizedInSource = cleanWord.length > 0 && cleanWord.charAt(0) === cleanWord.charAt(0).toUpperCase() && /[a-zA-Z]/.test(cleanWord.charAt(0));
-
-        if (this.isProperNoun(rawWord) || (isAlreadySentenceCase && isCapitalizedInSource)) {
-          result.push(rawWord);
-        } else {
-          result.push(rawWord.toLowerCase());
-        }
-      }
-
-      return result.join(' ');
-    }
-  };
-
-  function toTitleCase(str) {
-    if (!str) return '';
-    const smallWords = /^(a|an|and|as|at|but|by|en|for|if|in|nor|of|on|or|per|the|to|v\.|via)$/i;
-    return String(str).replace(/[A-Za-z0-9\u00C0-\u00FF]+[^\s-]*/g, (match, index, title) => {
-      if (index > 0 && index + match.length !== title.length && match.search(smallWords) !== -1) {
-        return match.toLowerCase();
-      }
-      return match.charAt(0).toUpperCase() + match.slice(1);
-    });
-  }
-
-  function getCleanDomain(hostname) {
-    if (!hostname) return 'domain';
-    let host = hostname.toLowerCase().replace('www.', '');
-    const parts = host.split('.');
-    if (parts.length >= 3) {
-      const sub = parts[0];
-      const genericSubs = ['news', 'press', 'blog', 'm', 'en', 'es', 'fr', 'edition', 'amp', 'world', 'releases', 'org', 'com', 'gov', 'net', 'edu'];
-      if (genericSubs.includes(sub)) {
-        return parts[1];
-      }
-    }
-    return parts[0];
-  }
-
-  function cleanAuthorByline(authorStr) {
-    if (!authorStr) return '';
-    let str = authorStr.trim();
-    str = str.replace(/\b(?:and\s+)?reuters\b/gi, '');
-    str = str.replace(/\b(?:and\s+)?associated\s+press\b/gi, '');
-    str = str.replace(/\b(?:and\s+)?ap\b/gi, '');
-    str = str.replace(/[\/\s,;&]+$/, '').replace(/^[\/\s,;&]+/, '').trim();
-    return str;
-  }
-
-  function isValidAuthorName(authorStr) {
-    if (!authorStr) return false;
-    const cleaned = authorStr.toLowerCase().trim();
-    const bannedTerms = ['news', 'staff', 'admin', 'reporter', 'editor', 'com', 'http'];
-    if (bannedTerms.some(term => cleaned.includes(term))) return false;
-    if (cleaned.includes('.com') || cleaned.includes('-news')) return false;
-    return true;
-  }
-
-  function isNewsWebsite(domain) {
-    const newsDomains = ['nytimes', 'washingtonpost', 'cnn', 'reuters', 'apnews', 'nbcnews', 'foxnews', 'cbsnews', 'abcnews', 'bloomberg', 'forbes', 'theguardian', 'guardian', 'bbc', 'thehill'];
-    return newsDomains.includes(domain.toLowerCase());
-  }
-
-  function getGroupAuthor(domain, url) {
-    const d = domain.toLowerCase();
-    const groupAuthorMap = {
-      'un': 'United Nations',
-      'whitehouse': 'The White House',
-      'thehill': 'The Hill',
-      'apnews': 'Associated Press',
-      'reuters': 'Reuters',
-      'nytimes': 'The New York Times',
-      'washingtonpost': 'The Washington Post',
-      'guardian': 'The Guardian',
-      'theguardian': 'The Guardian',
-      'bbc': 'BBC',
-      'cnn': 'CNN',
-      'nbcnews': 'NBC News',
-      'foxnews': 'Fox News',
-      'cbsnews': 'CBS News',
-      'abcnews': 'ABC News',
-      'wsj': 'The Wall Street Journal',
-      'bloomberg': 'Bloomberg',
-      'forbes': 'Forbes',
-      'npr': 'NPR',
-      'usnews': 'U.S. News & World Report'
-    };
-    return groupAuthorMap[d] || null;
-  }
-
-  function getCleanTitle() {
-    const rawTitle = document.title || 'Source';
-    const titleStr = String(rawTitle);
-    let clean = titleStr.replace(/\s*[:|–-]\s*(NPR|The White House|NBC News|The Hill|AP News|Reuters|Associated Press|BBC|CNN|The New York Times|The Washington Post|The Guardian).*$/i, '').trim();
-    clean = clean.split(/\s+[\-\|–]\s+/)[0].trim();
-    return clean || titleStr;
-  }
-
-  function getSiteName(domain, url) {
-    if (!domain) return 'Web';
-    let d = domain.toLowerCase();
-    if (d.includes('.')) {
-      d = getCleanDomain(d);
-    }
-    
-    const siteMap = {
-      'un': 'UN News',
-      'apnews': 'AP News',
-      'reuters': 'Reuters',
-      'nbcnews': 'NBC News',
-      'thehill': 'The Hill',
-      'whitehouse': 'The White House',
-      'theguardian': 'The Guardian',
-      'guardian': 'The Guardian',
-      'bbc': 'BBC',
-      'nytimes': 'The New York Times',
-      'washingtonpost': 'The Washington Post',
-      'cnn': 'CNN',
-      'foxnews': 'Fox News',
-      'cbsnews': 'CBS News',
-      'abcnews': 'ABC News',
-      'wsj': 'The Wall Street Journal',
-      'bloomberg': 'Bloomberg',
-      'forbes': 'Forbes',
-      'wired': 'Wired',
-      'techcrunch': 'TechCrunch',
-      'theverge': 'The Verge',
-      'github': 'GitHub',
-      'youtube': 'YouTube',
-      'reddit': 'Reddit',
-      'pubmed': 'PubMed',
-      'ncbi': 'PubMed',
-      'x': 'X',
-      'twitter': 'X',
-      'wikipedia': 'Wikipedia',
-      'medium': 'Medium',
-      'substack': 'Substack',
-      'arxiv': 'arXiv',
-      'google': 'Google',
-      'googlescholar': 'Google Scholar',
-      'npr': 'NPR',
-      'usnews': 'U.S. News & World Report'
-    };
-
-    if (siteMap[d]) return siteMap[d];
-
-    try {
-      const host = new URL(url).hostname.toLowerCase();
-      if (host.includes('thehill.com')) return 'The Hill';
-      if (host.includes('whitehouse.gov')) return 'The White House';
-      if (host.includes('apnews.com')) return 'AP News';
-      if (host.includes('reuters.com')) return 'Reuters';
-      if (host.includes('nbcnews.com')) return 'NBC News';
-      if (host.includes('theguardian.com')) return 'The Guardian';
-      if (host.includes('bbc.com') || host.includes('bbc.co.uk')) return 'BBC';
-      if (host.includes('nytimes.com')) return 'The New York Times';
-      if (host.includes('washingtonpost.com')) return 'The Washington Post';
-      if (host.includes('cnn.com')) return 'CNN';
-      if (host.includes('wsj.com')) return 'The Wall Street Journal';
-      if (host.includes('npr.org')) return 'NPR';
-      if (host.includes('usnews.com')) return 'U.S. News & World Report';
-    } catch(e) {}
-
-    return d.charAt(0).toUpperCase() + d.slice(1);
-  }
-
-  function extractRealAuthorFromPage() {
-    try {
-      const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
-      for (const script of jsonLdScripts) {
-        const json = JSON.parse(script.textContent);
-        const items = Array.isArray(json) ? json : (json['@graph'] || [json]);
-        for (const item of items) {
-          if (item.author) {
-            let authorData = item.author;
-            if (Array.isArray(authorData)) {
-              const names = authorData.map(a => (typeof a === 'string' ? a : a.name)).filter(Boolean);
-              if (names.length > 0) return names.join(' and ').replace(/^by\s+/i, '').trim();
-            } else if (typeof authorData === 'string') {
-              return authorData.replace(/^by\s+/i, '').trim();
-            } else if (authorData.name) {
-              return authorData.name.replace(/^by\s+/i, '').trim();
-            }
-          }
-        }
-      }
-    } catch (e) {}
-
-    const metaSelectors = [
-      'meta[name="author"]',
-      'meta[property="article:author"]',
-      'meta[name="parsely-author"]',
-      'meta[name="sailthru.author"]',
-      'meta[name="byl"]',
-      'meta[name="byline"]',
-      'meta[property="og:article:author"]',
-      'meta[name="dc.creator"]'
-    ];
-
-    for (const selector of metaSelectors) {
-      const el = document.querySelector(selector);
-      if (el && el.content && el.content.trim().length > 1) {
-        let name = el.content.trim().replace(/^by\s+/i, '').trim();
-        if (name && name.length < 120) return name;
-      }
-    }
-
-    const authorLinks = Array.from(document.querySelectorAll('a[href*="/authors/"], a[href*="/author/"], [data-testid*="Author" i], [aria-label*="author" i]'))
-      .map(a => a.innerText ? a.innerText.trim() : '')
-      .filter(txt => txt.length > 2 && txt.length < 60 && !txt.toLowerCase().includes('http'));
-
-    if (authorLinks.length > 0) {
-      const uniqueAuthors = [...new Set(authorLinks)];
-      return uniqueAuthors.join(' and ').replace(/^by\s+/i, '').trim();
-    }
-
-    const domSelectors = [
-      '[rel="author"]',
-      '.byline',
-      '.author-name',
-      '.article-author',
-      '[class*="byline" i]',
-      '[class*="author-name" i]',
-      '[id*="byline" i]'
-    ];
-
-    for (const selector of domSelectors) {
-      const el = document.querySelector(selector);
-      if (el && el.innerText) {
-        let text = el.innerText.trim().split('\n')[0].trim();
-        if (text) {
-          text = text.replace(/^by\s+/i, '').trim();
-          if (text.length > 2 && text.length < 80 && !text.toLowerCase().includes('http')) {
-            return text;
-          }
-        }
-      }
-    }
-
-    const headingsAndParas = Array.from(document.querySelectorAll('p, div, span, header')).slice(0, 20);
-    for (const el of headingsAndParas) {
-      const txt = el.innerText ? el.innerText.trim() : '';
-      // Fixed: Properly closed capture groups for byline pattern matching
-      const match = txt.match(/^by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:and|&)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)?)/i);
-      if (match && match[1] && match[1].length < 80) {
-        return match[1].trim();
-      }
-    }
-
-    return null;
-  }
-
-  function createNotePayload(type, selectionText) {
-    const rawTitle = document.title || 'Source';
-    let cleanTitle = getCleanTitle();
-    const url = window.location.href;
-    const domain = getCleanDomain(window.location.hostname);
-    
-    const today = new Date();
-    const year = today.getFullYear();
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const monthDay = `${monthNames[today.getMonth()]} ${today.getDate()}`;
-    const defaultFullDate = `${year}, ${monthDay}`;
-
-    let pubDate = defaultFullDate;
-    try {
-      const dateMeta = document.querySelector('meta[property="article:published_time"], meta[name="date"], meta[name="publication_date"], time[datetime]');
-      if (dateMeta) {
-        const rawDate = dateMeta.content || dateMeta.getAttribute('datetime') || dateMeta.innerText;
-        if (rawDate) {
-          const d = new Date(rawDate);
-          if (!isNaN(d.getTime())) {
-            const pYear = d.getFullYear();
-            const pMonthDay = `${monthNames[d.getMonth()]} ${d.getDate()}`;
-            pubDate = `${pYear}, ${pMonthDay}`;
-          }
-        }
-      }
-    } catch(e) {}
-
-    let author = extractRealAuthorFromPage();
-
-    if (author) {
-      author = cleanAuthorByline(author);
-      if (!isValidAuthorName(author)) {
-        author = null;
-      } else {
-        const parsed = parseAuthorNames(author);
-        if (parsed.length > 5) {
-          author = null;
-        }
-      }
-    }
-
-    if (!author) {
-      if (isNewsWebsite(domain)) {
-        author = '';
-      } else {
-        const groupAuth = getGroupAuthor(domain, url);
-        if (groupAuth) {
-          author = groupAuth;
-        } else {
-          author = domain;
-        }
-      }
-    }
-
-    let isHomepage = false;
-    try {
-      const urlObj = new URL(url);
-      const pathClean = urlObj.pathname.trim().replace(/\/+$/, '');
-      if (pathClean === '' || pathClean === '/' || /^\/(en|es|fr|de|ja|it|us|world)$/i.test(pathClean)) {
-        isHomepage = true;
-      }
-    } catch(e) {}
-
-    const siteName = getSiteName(domain, url);
-    if (isHomepage) {
-      cleanTitle = siteName;
-      const groupAuth = getGroupAuthor(domain, url);
-      author = groupAuth || siteName;
-    }
-
-    try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      if (domain === 'github' && pathParts.length > 0) {
-        author = pathParts[0];
-        if (pathParts.length >= 2) cleanTitle = pathParts[1];
-        else cleanTitle = `GitHub Profile of ${author}`;
-      } else if ((domain === 'x' || domain === 'twitter') && pathParts.length > 0) {
-        author = pathParts[0];
-      } else if (domain === 'youtube' && pathParts.length > 0 && pathParts[0].startsWith('@')) {
-        author = pathParts[0].substring(1);
-      }
-    } catch(e) {}
-
-    return {
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      type: type,
-      text: selectionText || '',
-      title: rawTitle,
-      cleanTitle: cleanTitle,
-      author: author,
-      url: url,
-      domain: domain,
-      year: year,
-      fullDate: pubDate,
-      accessDate: `${today.getDate()} ${monthNames[today.getMonth()].slice(0, 3)}. ${year}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
-    };
-  }
-
-  function parseAuthorNames(authorStr) {
-    if (!authorStr || !isValidAuthorName(authorStr)) return [];
-    let str = authorStr.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
-    if (!str) return [];
-
-    let names = [];
-    if (str.includes(' and ') || str.includes(' & ')) {
-      let temp = str.replace(/,?\s+(?:and|&)\s+/gi, ' ||| ');
-      let parts = temp.split(' ||| ');
-      
-      parts.forEach(part => {
-        if (part.includes(',')) {
-          const commaParts = part.split(',').map(s => s.trim()).filter(Boolean);
-          if (commaParts.length === 2 && !commaParts[0].includes(' ') && !commaParts[1].includes(' ')) {
-            names.push(`${commaParts[1]} ${commaParts[0]}`);
-          } else {
-            commaParts.forEach(p => names.push(p));
-          }
-        } else {
-          names.push(part.trim());
-        }
-      });
-    } else if (str.includes(';')) {
-      names = str.split(';').map(s => s.trim()).filter(Boolean);
-    } else if (str.includes(',')) {
-      const commaParts = str.split(',').map(s => s.trim()).filter(Boolean);
-      if (commaParts.length % 2 === 0 && commaParts.every(p => !p.includes(' '))) {
-        for (let i = 0; i < commaParts.length; i += 2) {
-          names.push(`${commaParts[i+1]} ${commaParts[i]}`);
-        }
-      } else {
-        names = commaParts;
-      }
-    } else {
-      names = [str];
-    }
-
-    const uniqueNames = [...new Set(names)].filter(n => n.length > 1);
-    return uniqueNames.length > 5 ? [] : uniqueNames;
-  }
-
-  function formatSingleAuthorAPA(name) {
-    if (!name) return '';
-    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
-    if (!trimmed) return '';
-
-    const orgKeywords = ['white house', 'department', 'ministry', 'organization', 'commission', 'agency', 'foundation', 'center', 'institute', 'bureau', 'office', 'house', 'senate', 'parliament', 'government', 'association', 'society', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
-    if (orgKeywords.some(kw => trimmed.toLowerCase().includes(kw)) || trimmed.toLowerCase().startsWith('the ')) {
-      return trimmed;
-    }
-
-    if (trimmed.includes(',')) {
-      const parts = trimmed.split(',');
-      const lastName = parts[0].trim();
-      const firstParts = parts[1].trim().split(/[\s\.-]+/);
-      const initials = firstParts.map(p => {
-        const clean = p.replace(/[^a-zA-Z]/g, '');
-        return clean ? clean.charAt(0).toUpperCase() + '.' : '';
-      }).filter(Boolean).join(' ');
-      return `${lastName}, ${initials}`;
-    }
-
-    const words = trimmed.split(/\s+/);
-    if (words.length >= 2) {
-      const lastName = words[words.length - 1];
-      const initials = words.slice(0, -1).map(w => {
-        const clean = w.replace(/[^a-zA-Z]/g, '');
-        return clean ? clean.charAt(0).toUpperCase() + '.' : '';
-      }).filter(Boolean).join(' ');
-
-      return `${lastName}, ${initials}`;
-    }
-
-    return trimmed;
-  }
-
-  function formatAPAAuthor(authorStr) {
-    if (!authorStr || authorStr.length < 2) return '';
-
-    const orgKeywords = ['white house', 'department', 'ministry', 'organization', 'commission', 'agency', 'foundation', 'center', 'institute', 'bureau', 'office', 'house', 'senate', 'parliament', 'government', 'association', 'society', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
-    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
-      return authorStr.replace(/\.$/, '');
-    }
-
-    const names = parseAuthorNames(authorStr);
-    const formatted = names.map(formatSingleAuthorAPA).filter(Boolean);
-
-    if (formatted.length === 0) return '';
-    if (formatted.length === 1) return formatted[0];
-    if (formatted.length === 2) return `${formatted[0]}, & ${formatted[1]}`;
-
-    const allExceptLast = formatted.slice(0, -1).join(', ');
-    const lastAuthor = formatted[formatted.length - 1];
-    return `${allExceptLast}, & ${lastAuthor}`;
-  }
-
-  function formatSingleAuthorMLA(name) {
-    if (!name) return '';
-    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
-    if (!trimmed) return '';
-
-    if (trimmed.includes(',')) return trimmed;
-
-    const parts = trimmed.split(/\s+/);
-    if (parts.length >= 2) {
-      const lastName = parts[parts.length - 1];
-      const firstName = parts.slice(0, parts.length - 1).join(' ');
-      return `${lastName}, ${firstName}`;
-    }
-
-    return trimmed;
-  }
-
-  function formatMLAAuthor(authorStr) {
-    if (!authorStr || authorStr.length < 2) return '';
-
-    const orgKeywords = ['white house', 'department', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'bureau', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
-    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
-      return `${authorStr.replace(/\.$/, '')}. `;
-    }
-
-    const names = parseAuthorNames(authorStr);
-    if (names.length === 0) return '';
-
-    if (names.length === 1) {
-      const parts = names[0].split(/\s+/);
-      if (parts.length >= 2) {
-        return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}. `;
-      }
-      return `${names[0]}. `;
-    }
-
-    if (names.length === 2) {
-      const parts1 = names[0].split(/\s+/);
-      const firstAuthor = parts1.length >= 2 ? `${parts1[parts1.length - 1]}, ${parts1.slice(0, -1).join(' ')}` : names[0];
-      return `${firstAuthor}, and ${names[1]}. `;
-    }
-
-    const firstAuthor = formatSingleAuthorMLA(names[0]);
-    return `${firstAuthor}, et al. `;
-  }
-
-  function formatChicagoSingleAuthorFirst(name) {
-    if (!name) return '';
-    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
-    if (!trimmed) return '';
-    if (trimmed.includes(',')) return trimmed;
-
-    const parts = trimmed.split(/\s+/);
-    if (parts.length >= 2) {
-      const lastName = parts[parts.length - 1];
-      const firstName = parts.slice(0, parts.length - 1).join(' ');
-      return `${lastName}, ${firstName}`;
-    }
-    return trimmed;
-  }
-
-  function formatChicagoSingleAuthorNormal(name) {
-    if (!name) return '';
-    let trimmed = name.trim().replace(/^by\s+/i, '').replace(/\.$/, '');
-    if (!trimmed) return '';
-    if (trimmed.includes(',')) {
-      const parts = trimmed.split(',');
-      return `${parts[1].trim()} ${parts[0].trim()}`;
-    }
-    return trimmed;
-  }
-
-  function formatChicagoAuthor(authorStr) {
-    if (!authorStr || authorStr.length < 2) return '';
-
-    const orgKeywords = ['white house', 'department', 'staff', 'reuters', 'press', 'news', 'editorial', 'team', 'bureau', 'guardian', 'associated', 'bloomberg', 'times', 'post'];
-    if (orgKeywords.some(kw => authorStr.toLowerCase().includes(kw)) || authorStr.toLowerCase().startsWith('the ')) {
-      return `${authorStr.replace(/\.$/, '')}. `;
-    }
-
-    const names = parseAuthorNames(authorStr);
-    if (names.length === 0) return '';
-
-    if (names.length === 1) {
-      const parts = names[0].split(/\s+/);
-      if (parts.length >= 2) {
-        return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}. `;
-      }
-      return `${names[0]}. `;
-    }
-
-    if (names.length === 2) {
-      const first = formatChicagoSingleAuthorFirst(names[0]);
-      const second = formatChicagoSingleAuthorNormal(names[1]);
-      return `${first}, and ${second}. `;
-    }
-
-    const first = formatChicagoSingleAuthorFirst(names[0]);
-    const middle = names.slice(1, -1).map(formatChicagoSingleAuthorNormal).join(', ');
-    const last = formatChicagoSingleAuthorNormal(names[names.length - 1]);
-
-    if (middle) {
-      return `${first}, ${middle}, and ${last}. `;
-    } else {
-      return `${first}, and ${last}. `;
-    }
-  }
-
-  function formatMLADate(fullDate) {
-    if (!fullDate) return '';
-    const fullDateStr = String(fullDate);
-    const mShort = {
-      'january': 'Jan.', 'february': 'Feb.', 'march': 'Mar.', 'april': 'Apr.',
-      'may': 'May', 'june': 'June', 'july': 'July', 'august': 'Aug.',
-      'september': 'Sept.', 'october': 'Oct.', 'november': 'Nov.', 'december': 'Dec.'
-    };
-
-    try {
-      const d = new Date(fullDateStr.replace(',', ''));
-      if (!isNaN(d.getTime())) {
-        const day = d.getDate();
-        const monthFull = d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase();
-        const monthAbbr = mShort[monthFull] || d.toLocaleDateString('en-US', { month: 'short' });
-        const year = d.getFullYear();
-        return `${day} ${monthAbbr} ${year}`;
-      }
-    } catch(e) {}
-
-    return fullDateStr;
-  }
-
-  function formatChicagoDate(fullDate, fallbackYear) {
-    if (!fullDate) return `${fallbackYear}.`;
-    const fullDateStr = String(fullDate);
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-    try {
-      const d = new Date(fullDateStr.replace(',', ''));
-      if (!isNaN(d.getTime())) {
-        const day = d.getDate();
-        const month = monthNames[d.getMonth()];
-        const year = d.getFullYear();
-        return `${month} ${day}, ${year}.`;
-      }
-    } catch(e) {}
-
-    return `${fullDateStr}.`;
-  }
-
-  function getMLAUrl(url) {
-    if (!url) return '';
-    return String(url).replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-  }
-
-  // --- AUTOSCROLL KILLER & POINTER LOCK DEFENSES ---
+  // --- SCROLL SUPPRESSION & POINTER LOCK ---
 
   function preventScrollEvent(e) {
     if (isWheelActive) {
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
       return false;
     }
   }
 
   function preventKeyboardScroll(e) {
-    const keys = ['Space', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'End', 'Home'];
-    if (isWheelActive && keys.includes(e.code)) {
+    if (!isWheelActive) return;
+    const scrollKeys = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'];
+    if (scrollKeys.includes(e.code) || scrollKeys.includes(e.key)) {
       e.preventDefault();
       e.stopPropagation();
-      return false;
+    }
+  }
+
+  function enforceLockedScroll() {
+    if (isWheelActive) {
+      window.scrollTo(lockedScrollX, lockedScrollY);
     }
   }
 
   function lockScrollAndPointer() {
-    if (document.body) {
-      originalBodyOverflow = document.body.style.overflow;
-      document.body.style.setProperty('overflow', 'hidden', 'important');
-    }
-    if (document.documentElement) {
-      originalDocOverflow = document.documentElement.style.overflow;
-      document.documentElement.style.setProperty('overflow', 'hidden', 'important');
-    }
+    lockedScrollX = window.scrollX || window.pageXOffset || (document.documentElement ? document.documentElement.scrollLeft : 0) || 0;
+    lockedScrollY = window.scrollY || window.pageYOffset || (document.documentElement ? document.documentElement.scrollTop : 0) || 0;
 
-    document.documentElement.style.setProperty('cursor', 'pointer', 'important');
-    if (document.body) document.body.style.setProperty('cursor', 'pointer', 'important');
     hostDiv.style.setProperty('cursor', 'pointer', 'important');
 
     window.addEventListener('wheel', preventScrollEvent, { capture: true, passive: false });
@@ -832,58 +151,82 @@
     window.addEventListener('touchmove', preventScrollEvent, { capture: true, passive: false });
     document.addEventListener('touchmove', preventScrollEvent, { capture: true, passive: false });
     window.addEventListener('keydown', preventKeyboardScroll, { capture: true, passive: false });
-    
-    wheelContainer.addEventListener('wheel', preventScrollEvent, { capture: true, passive: false });
+    window.addEventListener('scroll', enforceLockedScroll, { capture: true, passive: false });
   }
 
   function killAutoscrollAndUnlock() {
-    // 1. Restore body/doc overflow rules
-    if (document.body) {
-      if (originalBodyOverflow) {
-        document.body.style.setProperty('overflow', originalBodyOverflow);
-      } else {
-        document.body.style.removeProperty('overflow');
-      }
-      document.body.style.removeProperty('cursor');
-    }
-    if (document.documentElement) {
-      if (originalDocOverflow) {
-        document.documentElement.style.setProperty('overflow', originalDocOverflow);
-      } else {
-        document.documentElement.style.removeProperty('overflow');
-      }
-      document.documentElement.style.removeProperty('cursor');
-    }
     hostDiv.style.removeProperty('cursor');
 
-    // 2. Detach locking listeners
     window.removeEventListener('wheel', preventScrollEvent, { capture: true });
     document.removeEventListener('wheel', preventScrollEvent, { capture: true });
     window.removeEventListener('touchmove', preventScrollEvent, { capture: true });
     document.removeEventListener('touchmove', preventScrollEvent, { capture: true });
     window.removeEventListener('keydown', preventKeyboardScroll, { capture: true });
-    wheelContainer.removeEventListener('wheel', preventScrollEvent, { capture: true });
+    window.removeEventListener('scroll', enforceLockedScroll, { capture: true });
 
-    // 3. Hide wheel element
     wheelContainer.classList.add('hidden');
   }
 
-  // --- MOUSE EVENT LISTENERS (DEBOUNCE + AUTOSCROLL INTERCEPT) ---
+  function cancelAndCloseWheel() {
+    killAutoscrollAndUnlock();
+    isWheelActive = false;
+    isKeyGesture = false;
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    if (releaseGraceTimer) {
+      clearTimeout(releaseGraceTimer);
+      releaseGraceTimer = null;
+    }
+  }
+
+  // --- MOUSE LISTENERS ---
+
+  window.addEventListener('mousemove', (e) => {
+    // Continuously track cursor coordinates
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+
+    if (!isWheelActive) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    calculateSector(e.clientX, e.clientY);
+  }, true);
 
   window.addEventListener('mousedown', (e) => {
+    // If opened via hotkey in pinned mode: Left-Click executes hovered action or cancels
+    if (e.button === 0 && isWheelActive && isKeyGesture) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const sectorToRun = currentSector;
+      killAutoscrollAndUnlock();
+      isWheelActive = false;
+      isKeyGesture = false;
+
+      if (sectorToRun !== 'NEUTRAL') {
+        executeQuickAction(sectorToRun);
+      }
+      return;
+    }
+
+    // Middle Mouse Button Trigger
     if (e.button !== 1) return;
 
-    // Check if middle button was released briefly due to switch contact bounce
     if (releaseGraceTimer) {
       clearTimeout(releaseGraceTimer);
       releaseGraceTimer = null;
       e.preventDefault();
       e.stopPropagation();
-      return; // Maintain gesture hold without disruption
+      return;
     }
 
     originX = e.clientX;
     originY = e.clientY;
+    isKeyGesture = false;
 
     if (holdTimer) clearTimeout(holdTimer);
 
@@ -894,32 +237,21 @@
     }, HOLD_THRESHOLD_MS);
   }, true);
 
-  window.addEventListener('mousemove', (e) => {
-    if (!isWheelActive) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    calculateSector(e.clientX, e.clientY);
-  }, true);
-
   window.addEventListener('mouseup', (e) => {
     if (e.button !== 1) return;
 
-    // Fast click before hold threshold: cancel gesture initialization
     if (holdTimer && !isWheelActive) {
       clearTimeout(holdTimer);
       holdTimer = null;
       return;
     }
 
-    if (isWheelActive) {
+    if (isWheelActive && !isKeyGesture) {
       e.preventDefault();
       e.stopPropagation();
 
       if (releaseGraceTimer) clearTimeout(releaseGraceTimer);
 
-      // Start 25ms debounce window to ensure this is an intentional release
       releaseGraceTimer = setTimeout(() => {
         releaseGraceTimer = null;
         finalizeGestureAndExecute();
@@ -931,21 +263,18 @@
     if (!isWheelActive) return;
 
     const sectorToRun = currentSector;
-    
-    // Autoscroll Killer Pipeline: Disengage all scroll/pointer locks before action
     killAutoscrollAndUnlock();
     isWheelActive = false;
+    isKeyGesture = false;
 
     if (holdTimer) {
       clearTimeout(holdTimer);
       holdTimer = null;
     }
 
-    // Execute target octant action
-    executeAction(sectorToRun);
+    executeQuickAction(sectorToRun);
   }
 
-  // Prevent Chrome from triggering native autoscroll or pasting clipboard
   window.addEventListener('auxclick', (e) => {
     if (e.button === 1 && preventNextAuxClick) {
       e.preventDefault();
@@ -954,23 +283,86 @@
     }
   }, true);
 
-  // Safety net: Kill autoscroll and reset pointer if user tabs away or window blurs
-  window.addEventListener('blur', () => {
-    if (isWheelActive || holdTimer || releaseGraceTimer) {
-      if (holdTimer) clearTimeout(holdTimer);
-      if (releaseGraceTimer) clearTimeout(releaseGraceTimer);
-      holdTimer = null;
-      releaseGraceTimer = null;
-      isWheelActive = false;
-      killAutoscrollAndUnlock();
+  // --- KEYBOARD HOTKEY LOGIC (Alt + Q) ---
+
+  function startKeyWheel(x, y) {
+    originX = x;
+    originY = y;
+    isWheelActive = true;
+    isKeyGesture = true;
+    keyPressStartTime = Date.now();
+    showWheel(originX, originY);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    // Escape key closes the wheel anytime
+    if (e.key === 'Escape' && isWheelActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      cancelAndCloseWheel();
+      return;
+    }
+
+    // Direct local hotkey listener: Alt + Q
+    if (e.altKey && e.code === 'KeyQ') {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // FIX 1: Ignore OS auto-repeat events when holding the key down (stops screen flashing)
+      if (e.repeat) return;
+
+      if (!isWheelActive) {
+        startKeyWheel(lastMouseX, lastMouseY);
+      } else if (isKeyGesture && Date.now() - keyPressStartTime > 250) {
+        cancelAndCloseWheel();
+      }
+      return;
+    }
+
+    preventKeyboardScroll(e);
+  }, true);
+
+  window.addEventListener('keyup', (e) => {
+    // Releasing Alt or Q after holding
+    if (isWheelActive && isKeyGesture && (e.code === 'KeyQ' || e.key === 'Alt')) {
+      const holdDuration = Date.now() - keyPressStartTime;
+
+      // FIX 2: Only auto-execute if an action was actually selected (not NEUTRAL).
+      // If the cursor is still in NEUTRAL, keep the wheel pinned open!
+      if (holdDuration >= 180 && currentSector !== 'NEUTRAL') {
+        e.preventDefault();
+        e.stopPropagation();
+        finalizeGestureAndExecute();
+      }
+    }
+  }, true);
+
+  // Listen for Chrome Extension Shortcut command from background.js
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'TRIGGER_WHEEL_HOTKEY') {
+      // FIX 3: Ignore background shortcut message if local keydown just started the wheel
+      // (Stops the double-toggle race condition that made the wheel instantly disappear)
+      if (Date.now() - keyPressStartTime < 350) return;
+
+      if (!isWheelActive) {
+        startKeyWheel(lastMouseX, lastMouseY);
+      } else {
+        cancelAndCloseWheel();
+      }
     }
   });
 
-  // --- 8-OCTANT RADIAL TRIGONOMETRY MATH ---
+  window.addEventListener('blur', () => {
+    if (isWheelActive || holdTimer || releaseGraceTimer) {
+      cancelAndCloseWheel();
+    }
+  });
+
+  // --- RADIAL TRIGONOMETRY MATH ---
 
   function calculateSector(mouseX, mouseY) {
     const dx = mouseX - originX;
-    const dy = originY - mouseY; // Invert Y axis
+    const dy = originY - mouseY;
 
     const distance = Math.sqrt(dx * dx + dy * dy);
 
@@ -1027,121 +419,273 @@
     lockScrollAndPointer();
   }
 
-  // --- RESEARCH ACTIONS EXECUTION ---
+  // --- ACTION ROUTING ---
 
-  function executeAction(sector) {
+  function executeQuickAction(sector) {
     switch (sector) {
-      case 'N': handleScholarSearch(); break;
-      case 'NE': handlePubMedSearch(); break;
-      case 'E': handleAppendNote(); break;
-      case 'SE': handleFormatCitation(); break;
-      case 'S': handleOpenWorkspace(); break;
-      case 'SW': handleTranslate(); break;
-      case 'W': handleTitleAndURL(); break;
-      case 'NW': handleCopyPlusSource(); break;
+      case 'N': handleDuplicateTab(); break;
+      case 'NE': handleJumpToTop(); break;
+      case 'E': handleFocusSearch(); break;
+      case 'SE': handleToggleMute(); break;
+      case 'S': handleCopyMarkdown(); break;
+      case 'SW': handleCopyPlainLink(); break;
+      case 'W': handleTranslate(); break;
+      case 'NW': handleReopenTab(); break;
       case 'NEUTRAL': default: break;
     }
   }
 
-  function saveNoteToWorkspace(noteEntry, toastMessage) {
-    chrome.storage.local.get({ researchNotes: [] }, (result) => {
-      const notes = result.researchNotes;
-      notes.push(noteEntry);
-      chrome.storage.local.set({ researchNotes: notes }, () => {
-        showToast(toastMessage || 'Note saved to Workspace!');
-      });
+  // ==========================================
+  // --- ACTION IMPLEMENTATIONS ---
+  // ==========================================
+
+  function handleDuplicateTab() {
+    chrome.runtime.sendMessage({ type: 'DUPLICATE_TAB' });
+    showToast('Duplicating tab...');
+  }
+
+  function handleJumpToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Jumped to top of page!');
+  }
+
+  function handleToggleMute() {
+    chrome.runtime.sendMessage({ type: 'TOGGLE_MUTE' });
+    chrome.runtime.sendMessage({ type: 'TOGGLE_MUTE_TAB' });
+    showToast('Mute toggled!');
+  }
+
+  function handleCopyPlainLink() {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('Page URL copied to clipboard!');
+    }).catch(() => {
+      showToast('Failed to copy URL');
     });
   }
 
-  function handleScholarSearch() {
-    const query = window.getSelection().toString().trim() || getCleanTitle();
-    chrome.runtime.sendMessage({ type: 'SEARCH_SCHOLAR', payload: { query } });
-    showToast('Searching Google Scholar...');
+  function handleReopenTab() {
+    chrome.runtime.sendMessage({ type: 'REOPEN_CLOSED_TAB' });
+    showToast('Reopening closed tab...');
   }
 
-  function handlePubMedSearch() {
-    const query = window.getSelection().toString().trim() || getCleanTitle();
-    chrome.runtime.sendMessage({ type: 'SEARCH_PUBMED', payload: { query } });
-    showToast('Searching PubMed...');
+  function findDeepElement(selectors, root = document) {
+    for (const selector of selectors) {
+      try {
+        const el = root.querySelector(selector);
+        if (el) return el;
+      } catch (e) {}
+    }
+
+    const allElements = root.querySelectorAll('*');
+    for (const el of allElements) {
+      if (el.shadowRoot) {
+        const found = findDeepElement(selectors, el.shadowRoot);
+        if (found) return found;
+      }
+    }
+
+    return null;
   }
 
-  function handleAppendNote() {
-    const selection = window.getSelection().toString().trim();
-    const cleanTitle = getCleanTitle();
-    const noteText = selection || `Bookmark: ${cleanTitle}`;
-
-    const payload = createNotePayload('NOTE', noteText);
-    saveNoteToWorkspace(payload, 'Note appended to Workspace!');
+  function createComposedEvent(type, EventClass = PointerEvent) {
+    return new EventClass(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      buttons: 1
+    });
   }
 
-  function handleFormatCitation() {
-    chrome.storage.local.get({ citationStyle: 'APA' }, (res) => {
-      const style = res.citationStyle || 'APA';
-      const payload = createNotePayload('CITATION', '');
-      const siteName = getSiteName(payload.domain, payload.url);
+  function handleRedditSearch() {
+    const redditHosts = document.querySelectorAll('shreddit-search-bar, faceplate-search-input, reddit-search-large, reddit-header-large, #search-input');
+    let targetInput = null;
 
-      let citationText = '';
-      if (style === 'MLA') {
-        const mlaAuthor = formatMLAAuthor(payload.author);
-        const mlaDate = formatMLADate(payload.fullDate);
-        const mlaUrl = getMLAUrl(payload.url);
-        const mlaDateStr = mlaDate ? `${mlaDate}, ` : '';
-        const titleCasedTitle = toTitleCase(payload.cleanTitle);
+    for (const host of redditHosts) {
+      const shadow = host.shadowRoot;
+      if (shadow) {
+        const shadowTrigger = shadow.querySelector('label, button, [part="container"], .input-container, .text-area-wrapper');
+        if (shadowTrigger) {
+          shadowTrigger.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
+          shadowTrigger.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
+          shadowTrigger.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
+          shadowTrigger.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
+          shadowTrigger.dispatchEvent(createComposedEvent('click', MouseEvent));
+        }
 
-        citationText = `${mlaAuthor}"${titleCasedTitle}." *${siteName}*, ${mlaDateStr}${mlaUrl}.`;
-      } else if (style === 'Chicago') {
-        const chicagoAuthor = formatChicagoAuthor(payload.author);
-        const cleanChicagoAuthor = chicagoAuthor.replace(/\.+$/, '').trim();
-        const chicagoDate = formatChicagoDate(payload.fullDate, payload.year);
-        const titleCasedTitle = toTitleCase(payload.cleanTitle);
-
-        const publisherString = (cleanChicagoAuthor.toLowerCase() === siteName.toLowerCase()) ? '' : `${siteName}, `;
-
-        citationText = `${chicagoAuthor}"${titleCasedTitle}." ${publisherString}${chicagoDate} ${payload.url}`;
-      } else if (style === 'BibTeX') {
-        const cleanAuthorKey = payload.author.toLowerCase().replace(/[^a-z0-9]/g, '') || 'source';
-        const bibKey = `${cleanAuthorKey}_${payload.domain}_${payload.year}`;
-
-        citationText = `@misc{${bibKey},\n  author       = {${payload.author}},\n  title        = {${payload.cleanTitle}},\n  year         = {${payload.year}},\n  url          = {${payload.url}},\n  howpublished = {\\url{${payload.url}}}\n}`;
-      } else {
-        // Official APA 7th Edition Format
-        const rawApaAuthor = formatAPAAuthor(payload.author);
-        const cleanApaAuthor = rawApaAuthor.replace(/\.+$/, '');
-        const sentenceTitle = ProperNounEngine.toSentenceCase(payload.cleanTitle);
-
-        if (!cleanApaAuthor) {
-          citationText = `${sentenceTitle}. (${payload.fullDate}). *${siteName}*. ${payload.url}`;
-        } else {
-          const siteString = (cleanApaAuthor.toLowerCase() === siteName.toLowerCase()) ? '' : `*${siteName}*. `;
-          citationText = `${cleanApaAuthor}. (${payload.fullDate}). ${sentenceTitle}. ${siteString}${payload.url}`;
+        const input = shadow.querySelector('input[name="q"], textarea[name="q"], input, textarea');
+        if (input) {
+          targetInput = input;
+          break;
         }
       }
+    }
 
-      payload.text = citationText;
+    if (!targetInput) {
+      targetInput = findDeepElement([
+        'faceplate-search-input input',
+        'faceplate-search-input textarea',
+        'shreddit-search-bar input',
+        'shreddit-search-bar textarea',
+        'input[name="q"]',
+        'textarea[name="q"]'
+      ]);
+    }
 
-      navigator.clipboard.writeText(citationText).then(() => {
-        saveNoteToWorkspace(payload, `${style} Citation copied & saved!`);
-      });
-    });
+    if (targetInput) {
+      const hostNode = targetInput.getRootNode()?.host;
+      if (hostNode) {
+        hostNode.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
+        hostNode.dispatchEvent(createComposedEvent('click', MouseEvent));
+      }
+
+      if (typeof targetInput.scrollIntoView === 'function') {
+        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      targetInput.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
+      targetInput.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
+      targetInput.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
+      targetInput.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
+      targetInput.dispatchEvent(createComposedEvent('click', MouseEvent));
+
+      targetInput.focus();
+      targetInput.dispatchEvent(new Event('focusin', { bubbles: true, composed: true }));
+
+      if (typeof targetInput.select === 'function') {
+        targetInput.select();
+      }
+
+      showToast('Reddit search focused!');
+      return true;
+    }
+
+    const slashOpts = { key: '/', code: 'Slash', keyCode: 191, which: 191, bubbles: true, cancelable: true, composed: true };
+    window.dispatchEvent(new KeyboardEvent('keydown', slashOpts));
+    document.dispatchEvent(new KeyboardEvent('keydown', slashOpts));
+    showToast('Reddit search triggered!');
+    return true;
   }
 
-  function handleOpenWorkspace() {
-    chrome.runtime.sendMessage({ type: 'OPEN_RESEARCH_PANEL' });
-    showToast('Opening Research Workspace...');
+  function triggerFullFocus(el) {
+    if (!el) return false;
+
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    let curr = el.getRootNode();
+    while (curr && curr.host) {
+      curr.host.dispatchEvent(createComposedEvent('click', MouseEvent));
+      curr = curr.host.getRootNode();
+    }
+
+    el.dispatchEvent(createComposedEvent('pointerdown', PointerEvent));
+    el.dispatchEvent(createComposedEvent('mousedown', MouseEvent));
+    el.dispatchEvent(createComposedEvent('pointerup', PointerEvent));
+    el.dispatchEvent(createComposedEvent('mouseup', MouseEvent));
+    el.dispatchEvent(createComposedEvent('click', MouseEvent));
+
+    el.focus();
+    el.dispatchEvent(new Event('focusin', { bubbles: true, composed: true }));
+
+    if (typeof el.select === 'function') {
+      el.select();
+    } else if (typeof el.setSelectionRange === 'function') {
+      el.setSelectionRange(0, el.value ? el.value.length : 0);
+    }
+
+    return true;
+  }
+
+  function handleFocusSearch() {
+    const isReddit = window.location.hostname.includes('reddit.com');
+
+    if (isReddit) {
+      handleRedditSearch();
+      return;
+    }
+
+    const searchSelectors = [
+      'textarea[name="q"]',
+      'input[name="q"]',
+      'textarea[part="control"]',
+      'input[type="search"]',
+      'input[name*="search" i]',
+      'textarea[name*="search" i]',
+      'input[placeholder*="search" i]',
+      'textarea[placeholder*="search" i]',
+      'textarea[placeholder*="Find" i]',
+      'input[aria-label*="search" i]',
+      '[role="searchbox"]'
+    ];
+
+    const searchInput = findDeepElement(searchSelectors);
+
+    if (searchInput) {
+      triggerFullFocus(searchInput);
+      showToast('Search focused!');
+      return;
+    }
+
+    const slashEvent = new KeyboardEvent('keydown', {
+      key: '/',
+      code: 'Slash',
+      keyCode: 191,
+      which: 191,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+
+    document.dispatchEvent(slashEvent);
+    showToast('Search triggered!');
+  }
+
+  function handleCopyMarkdown() {
+    const selection = window.getSelection().toString().trim();
+    const title = document.title || 'Untitled Page';
+    const url = window.location.href;
+
+    let markdown = '';
+    if (selection) {
+      markdown = `> ${selection}\n\n[${title}](${url})`;
+    } else {
+      markdown = `[${title}](${url})`;
+    }
+
+    navigator.clipboard.writeText(markdown).then(() => {
+      showToast('Markdown link copied to clipboard!');
+    }).catch(() => {
+      showToast('Failed to copy to clipboard');
+    });
   }
 
   function handleTranslate() {
-    const textSelectors = ['h1', 'h2', 'h3', 'p', 'article', 'span.title'];
+    const textSelectors = [
+      'h1', 'h2', 'h3', 'p',
+      '#video-title', 'yt-formatted-string',
+      'shreddit-post', 'span.title', 'a[id*="title"]'
+    ];
+
     const elements = Array.from(document.querySelectorAll(textSelectors.join(',')))
-      .filter(el => el.innerText && el.innerText.trim().length > 3 && el.offsetWidth > 0)
+      .filter(el => {
+        const txt = el.innerText ? el.innerText.trim() : '';
+        return txt.length > 3 && el.offsetWidth > 0 && el.offsetHeight > 0;
+      })
       .slice(0, 20);
 
     if (elements.length === 0) {
-      showToast('No text found to translate.');
+      showToast('No readable text found to translate.');
       return;
     }
 
     const textList = elements.map(el => el.innerText.trim());
+
     showToast('Translating page text under the hood...');
 
     chrome.runtime.sendMessage({
@@ -1158,34 +702,6 @@
       } else {
         showToast('Translation failed.');
       }
-    });
-  }
-
-  function handleTitleAndURL() {
-    const cleanTitle = getCleanTitle();
-    const url = window.location.href;
-    const markdownLink = `[${cleanTitle}](${url})`;
-
-    navigator.clipboard.writeText(markdownLink).then(() => {
-      showToast('Title + URL copied!');
-    });
-  }
-
-  function handleCopyPlusSource() {
-    const selection = window.getSelection().toString().trim();
-
-    if (!selection) {
-      showToast('Please select text on the page first to save a Quote!');
-      return;
-    }
-
-    const payload = createNotePayload('QUOTE', selection);
-    const textToCopy = `> ${selection}\n\nSource: [${payload.cleanTitle}](${payload.url})`;
-
-    payload.text = textToCopy;
-
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      saveNoteToWorkspace(payload, 'Quote + Source saved!');
     });
   }
 

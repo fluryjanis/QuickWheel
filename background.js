@@ -1,39 +1,43 @@
 /**
- * Research Wheel - Background Worker
- * Handles Scholar & PubMed searches, Workspace Side Panel opening, and Translation API.
+ * Quick Wheel - Background Worker
  */
 
-chrome.runtime.onInstalled.addListener(() => {
-  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// Handle hotkey command from Chrome Shortcuts API
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'open-quick-wheel' && tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_WHEEL_HOTKEY' }).catch(() => {});
   }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const tab = sender.tab;
+  const tabId = sender.tab?.id;
 
-  // Open Research Workspace Side Panel
-  if (message.type === 'OPEN_RESEARCH_PANEL') {
-    if (tab && tab.id) {
-      chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+  // Duplicate current active tab
+  if (message.type === 'DUPLICATE_TAB') {
+    if (tabId) {
+      chrome.tabs.duplicate(tabId).catch(() => {});
     }
   }
 
-  // Scholar Search
-  if (message.type === 'SEARCH_SCHOLAR') {
-    const query = message.payload.query;
-    const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`;
-    chrome.tabs.create({ url: scholarUrl });
+  // Toggle tab mute state
+  if (message.type === 'TOGGLE_MUTE' || message.type === 'TOGGLE_MUTE_TAB') {
+    if (tabId) {
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError || !tab) return;
+        const isMuted = tab.mutedInfo ? tab.mutedInfo.muted : false;
+        chrome.tabs.update(tabId, { muted: !isMuted });
+      });
+    }
   }
 
-  // PubMed Search
-  if (message.type === 'SEARCH_PUBMED') {
-    const query = message.payload.query;
-    const pubmedUrl = `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}`;
-    chrome.tabs.create({ url: pubmedUrl });
+  // Restore last closed tab
+  if (message.type === 'REOPEN_CLOSED_TAB') {
+    if (chrome.sessions && chrome.sessions.restore) {
+      chrome.sessions.restore().catch(() => {});
+    }
   }
 
-  // Under-the-Hood Batch Translation
+  // In-place batch translation
   if (message.type === 'TRANSLATE_PAGE_NODES') {
     const textList = message.payload.textList || [];
     const targetLang = (chrome.i18n.getUILanguage() || 'en').split('-')[0];
