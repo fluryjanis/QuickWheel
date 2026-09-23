@@ -2081,6 +2081,117 @@
       ].join(" ");
     }
 
+    html
+<script>
+  (function () {
+    "use strict";
+
+    const actions = [
+      {
+        name: "Duplicate Tab",
+        dir: "NORTH (↑)",
+        icon: "⎘",
+        desc: "Open a duplicate of the current tab without going through the tab menu.",
+        startAngle: -22.5,
+        endAngle: 22.5,
+        midAngle: 0
+      },
+      {
+        name: "Jump to Top",
+        dir: "NORTH-EAST (↗)",
+        icon: "▲",
+        desc: "Smoothly scroll a long webpage back to the top.",
+        startAngle: 22.5,
+        endAngle: 67.5,
+        midAngle: 45
+      },
+      {
+        name: "Focus Search",
+        dir: "EAST (→)",
+        icon: "🔍",
+        desc: "Find and focus a compatible search input on the current page.",
+        startAngle: 67.5,
+        endAngle: 112.5,
+        midAngle: 90
+      },
+      {
+        name: "Mute / Unmute Tab",
+        dir: "SOUTH-EAST (↘)",
+        icon: "🔇",
+        desc: "Toggle audio for the current browser tab.",
+        startAngle: 112.5,
+        endAngle: 157.5,
+        midAngle: 135
+      },
+      {
+        name: "Copy Markdown",
+        dir: "SOUTH (↓)",
+        icon: "📝",
+        desc: "Copy the page as a Markdown link, including selected text as a blockquote when applicable.",
+        startAngle: 157.5,
+        endAngle: 202.5,
+        midAngle: 180
+      },
+      {
+        name: "Copy Link",
+        dir: "SOUTH-WEST (↙)",
+        icon: "🔗",
+        desc: "Copy the current page URL directly to the clipboard.",
+        startAngle: 202.5,
+        endAngle: 247.5,
+        midAngle: 225
+      },
+      {
+        name: "Translate Page",
+        dir: "WEST (←)",
+        icon: "🌐",
+        desc: "Translate readable page text in place without opening a separate translation tab.",
+        startAngle: 247.5,
+        endAngle: 292.5,
+        midAngle: 270
+      },
+      {
+        name: "Reopen Closed Tab",
+        dir: "NORTH-WEST (↖)",
+        icon: "↺",
+        desc: "Restore the most recently closed browser tab.",
+        startAngle: 292.5,
+        endAngle: 337.5,
+        midAngle: 315
+      }
+    ];
+
+    function polarToCartesian(cx, cy, r, angleInDegrees) {
+      const radians = (angleInDegrees - 90) * Math.PI / 180;
+
+      return {
+        x: cx + (r * Math.cos(radians)),
+        y: cy + (r * Math.sin(radians))
+      };
+    }
+
+    function describeDonutSegment(
+      cx,
+      cy,
+      innerR,
+      outerR,
+      startAngle,
+      endAngle
+    ) {
+      const p1 = polarToCartesian(cx, cy, outerR, startAngle);
+      const p2 = polarToCartesian(cx, cy, outerR, endAngle);
+      const p3 = polarToCartesian(cx, cy, innerR, endAngle);
+      const p4 = polarToCartesian(cx, cy, innerR, startAngle);
+
+      return [
+        "M", p1.x, p1.y,
+        "A", outerR, outerR, 0, 0, 1, p2.x, p2.y,
+        "L", p3.x, p3.y,
+        "A", innerR, innerR, 0, 0, 0, p4.x, p4.y,
+        "Z"
+      ].join(" ");
+    }
+
     function buildWheelSlices(containerId, isInteractive) {
       const group = document.getElementById(containerId);
 
@@ -2285,101 +2396,6 @@
 </script>
 
 
-      buildWheelSlices("heroWheelSlices", false);
-      buildWheelSlices("interactiveWheelSlices", true);
-
-      const demoTitle = document.getElementById("demoTitle");
-      const demoDesc = document.getElementById("demoDesc");
-      const demoDir = document.getElementById("demoDir");
-      const interactiveWheel = document.getElementById("interactiveWheel");
-      const interactiveCenterBtn = document.getElementById("interactiveCenterBtn");
-
-      function updateActiveAction(index) {
-        const wedges = document.querySelectorAll(
-          "#interactiveWheelSlices .wheel-sector-wedge"
-        );
-
-        wedges.forEach((wedge, wedgeIndex) => {
-          wedge.classList.toggle(
-            "active-wedge",
-            wedgeIndex === index
-          );
-        });
-
-        const action = actions[index];
-
-        demoTitle.innerHTML =
-          '<span aria-hidden="true" style="font-size:1.8rem">' +
-          action.icon +
-          "</span>" +
-          action.name;
-
-        demoDesc.textContent = action.desc;
-        demoDir.textContent = "DIRECTION: " + action.dir;
-      }
-
-      const demoWedges = document.querySelectorAll(
-        "#interactiveWheelSlices .wheel-sector-wedge"
-      );
-
-      demoWedges.forEach((wedge) => {
-        wedge.addEventListener("mouseenter", () => {
-          const index = Number(
-            wedge.getAttribute("data-index")
-          );
-
-          updateActiveAction(index);
-        });
-      });
-
-      if (interactiveWheel) {
-        interactiveWheel.addEventListener("mousemove", (event) => {
-          const rect = interactiveWheel.getBoundingClientRect();
-
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-
-          const dx = event.clientX - centerX;
-          const dy = event.clientY - centerY;
-
-          const distance = Math.hypot(dx, dy);
-
-          if (distance > 35) {
-            let degrees =
-              Math.atan2(dx, -dy) * (180 / Math.PI);
-
-            if (degrees < 0) {
-              degrees += 360;
-            }
-
-            const sliceIndex =
-              Math.floor(((degrees + 22.5) % 360) / 45);
-
-            updateActiveAction(sliceIndex);
-          }
-        });
-      }
-
-      if (interactiveCenterBtn) {
-        interactiveCenterBtn.addEventListener("click", () => {
-          updateActiveAction(0);
-        });
-      }
-
-      document.querySelectorAll(".faq-question").forEach((button) => {
-        button.addEventListener("click", () => {
-          const item = button.parentElement;
-          const isOpen = item.classList.contains("open");
-
-          item.classList.toggle("open", !isOpen);
-          button.setAttribute(
-            "aria-expanded",
-            String(!isOpen)
-          );
-        });
-      });
-    })();
-  </script>
 
 </body>
 </html>
