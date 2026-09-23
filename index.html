@@ -2020,32 +2020,29 @@
 
           group.appendChild(path);
 
-          /* ICON */
-          const iconPosition = polarToCartesian(
-            cx,
-            cy,
-            iconR,
-            action.midAngle
-          );
+/* ICON */
+const iconPosition = polarToCartesian(
+  cx,
+  cy,
+  iconR,
+  action.midAngle
+);
 
-          const iconText = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "text"
-          );
+const iconText = document.createElementNS(
+  "http://www.w3.org/2000/svg",
+  "text"
+);
 
-          iconText.setAttribute("x", iconPosition.x);
-          iconText.setAttribute("y", iconPosition.y + 6);
-          iconText.setAttribute("font-size", "20");
-          iconText.setAttribute("text-anchor", "middle");
-          iconText.setAttribute("font-family", "system-ui, sans-serif");
-          iconText.textContent = action.icon;
+iconText.setAttribute("x", iconPosition.x);
+iconText.setAttribute("y", iconPosition.y + 6);
+iconText.setAttribute("font-size", "20");
+iconText.setAttribute("font-weight", "700");
+iconText.setAttribute("text-anchor", "middle");
+iconText.setAttribute("fill", "#f1f5f9");
+iconText.setAttribute("font-family", "system-ui, sans-serif");
+iconText.textContent = action.icon;
 
-          /*
-            Labels and icons are independent now.
-            This prevents the icon from visually colliding
-            with longer action names.
-          */
-          group.appendChild(iconText);
+group.appendChild(iconText);
 
           /* LABEL */
           const textPosition = polarToCartesian(
