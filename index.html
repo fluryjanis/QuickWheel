@@ -1,20 +1,69 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>QuickWheel — Radial Navigation Wheel Browser Extension</title>
-  <meta name="description" content="QuickWheel is a lightweight browser extension that turns your middle mouse button into an 8-direction radial navigation wheel for instant mouse gesture shortcuts." />
+  <meta
+    name="description"
+    content="QuickWheel is a lightweight browser extension that turns your middle mouse button into an 8-direction radial navigation wheel for faster browser actions."
+  />
+  <meta name="author" content="Janis Flury" />
   <link rel="canonical" href="https://fluryjanis.github.io/QuickWheel/" />
 
   <!-- Open Graph -->
+
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://fluryjanis.github.io/QuickWheel/" />
+  <meta property="og:site_name" content="QuickWheel" />
   <meta property="og:title" content="QuickWheel — Radial Navigation Wheel Browser Extension" />
-  <meta property="og:description" content="Turn your middle mouse button into instant browser shortcuts. Hold, flick toward an action, and browse faster." />
+  <meta
+    property="og:description"
+    content="Hold middle-click, flick toward an action, and release. QuickWheel puts eight common browser actions directly around your cursor."
+  />
 
-  <!-- Favicon SVG -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%231e2533' stroke='%2338bdf8' stroke-width='4'/><circle cx='50' cy='50' r='16' fill='%23dc4545'/><path d='M44 44 L56 56 M56 44 L44 56' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>" />
+  <!-- Twitter -->
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="QuickWheel — Radial Navigation Wheel Browser Extension" />
+  <meta
+    name="twitter:description"
+    content="An 8-direction radial navigation wheel for common browser actions."
+  />
+
+  <!-- SoftwareApplication Structured Data -->
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "QuickWheel",
+    "description": "A lightweight browser extension that turns your middle mouse button into an 8-direction radial navigation wheel for faster browser actions.",
+    "applicationCategory": "BrowserApplication",
+    "softwareVersion": "1.1.0",
+    "url": "https://fluryjanis.github.io/QuickWheel/",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": {
+      "@type": "Offer",
+      "price": 0,
+      "priceCurrency": "USD"
+    },
+    "sameAs": [
+      "https://github.com/fluryjanis/QuickWheel",
+      "https://addons.mozilla.org/en-US/firefox/addon/quickwheel/",
+      "https://sourceforge.net/projects/quickwheel/"
+    ]
+  }
+  </script>
+
+  <!-- Favicon -->
+
+  <link
+    rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%231e2533' stroke='%2338bdf8' stroke-width='4'/><circle cx='50' cy='50' r='16' fill='%23dc4545'/><path d='M44 44 L56 56 M56 44 L44 56' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>"
+  />
 
   <style>
     *, *::before, *::after {
@@ -25,19 +74,29 @@
 
     :root {
       --bg-dark: #0f131a;
-      --bg-card: rgba(26, 33, 47, 0.7);
-      --bg-card-hover: rgba(36, 46, 65, 0.85);
+      --bg-card: rgba(26, 33, 47, 0.72);
+      --bg-card-hover: rgba(36, 46, 65, 0.88);
+      --bg-panel: rgba(15, 20, 29, 0.72);
+
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-focus: rgba(56, 189, 248, 0.45);
-      --wheel-outer: #1c222e;
-      --wheel-inner: #242c3d;
-      --wheel-hover: #323d54;
+
+      --wheel-shell: #181e2a;
+      --wheel-fill: #222b3b;
+      --wheel-fill-hover: #333f56;
+      --wheel-stroke: #333d52;
+
       --wheel-red: #dc4545;
+      --wheel-red-dark: #c93636;
       --wheel-red-ring: rgba(239, 83, 80, 0.4);
+
       --primary: #38bdf8;
+      --primary-dark: #0284c7;
+
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --text-subtle: #64748b;
+
       --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
@@ -52,19 +111,35 @@
 
     body {
       overflow-x: hidden;
-      background-image: 
+      background:
         radial-gradient(circle at 50% -10%, rgba(56, 189, 248, 0.12), transparent 45%),
         radial-gradient(circle at 85% 35%, rgba(220, 69, 69, 0.06), transparent 30%),
         radial-gradient(circle at 15% 75%, rgba(56, 189, 248, 0.06), transparent 30%);
       background-attachment: fixed;
     }
 
-    a { color: inherit; text-decoration: none; }
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    strong {
+      color: var(--text-main);
+    }
+
+    code {
+      color: var(--primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9em;
+    }
 
     .container {
-      max-width: 1200px;
+      width: min(1200px, calc(100% - 3rem));
       margin: 0 auto;
-      padding: 0 1.5rem;
     }
 
     /* HEADER */
@@ -73,15 +148,18 @@
       top: 0;
       z-index: 100;
       backdrop-filter: blur(16px);
-      background: rgba(15, 19, 26, 0.85);
+      background: rgba(15, 19, 26, 0.86);
       border-bottom: 1px solid var(--border-subtle);
     }
+
     .nav-content {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 72px;
+      min-height: 72px;
+      gap: 1rem;
     }
+
     .brand {
       display: flex;
       align-items: center;
@@ -89,40 +167,86 @@
       font-size: 1.25rem;
       font-weight: 800;
       letter-spacing: -0.02em;
+      white-space: nowrap;
     }
+
     .brand-icon {
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background: var(--wheel-inner);
+      background: #242c3d;
       border: 2px solid var(--wheel-red);
       display: grid;
       place-items: center;
+      flex: 0 0 auto;
     }
-    .brand-icon svg { width: 14px; height: 14px; stroke: #fff; }
-    .nav-links { display: flex; gap: 2rem; }
-    .nav-link { font-size: 0.95rem; font-weight: 500; color: var(--text-muted); transition: color 0.2s; }
-    .nav-link:hover { color: #fff; }
+
+    .brand-icon svg {
+      width: 14px;
+      height: 14px;
+      stroke: #fff;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.6rem;
+      align-items: center;
+    }
+
+    .nav-link {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link:focus-visible {
+      color: #fff;
+    }
+
     .nav-btn {
-      padding: 0.5rem 1.1rem;
+      padding: 0.52rem 1.05rem;
       border-radius: 9999px;
       background: rgba(56, 189, 248, 0.1);
       border: 1px solid rgba(56, 189, 248, 0.3);
       color: var(--primary);
       font-size: 0.875rem;
-      font-weight: 600;
-      transition: all 0.2s;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      white-space: nowrap;
     }
-    .nav-btn:hover { background: var(--primary); color: #000; }
 
-    /* HERO */
-    .hero { padding: 5rem 0 4.5rem; }
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 3.5rem;
-      align-items: center;
+    .nav-btn:hover,
+    .nav-btn:focus-visible {
+      background: var(--primary);
+      color: #04101e;
     }
+
+    /* GENERAL */
+    section {
+      padding: 5rem 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 3.5rem;
+    }
+
+    .section-header h2 {
+      font-size: clamp(2rem, 3.5vw, 2.75rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.8rem;
+      line-height: 1.15;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
@@ -131,12 +255,14 @@
       background: rgba(56, 189, 248, 0.1);
       border: 1px solid rgba(56, 189, 248, 0.25);
       border-radius: 9999px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.78rem;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
       color: var(--primary);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.35rem;
     }
+
     .badge-dot {
       width: 7px;
       height: 7px;
@@ -144,63 +270,117 @@
       background: var(--primary);
       box-shadow: 0 0 8px var(--primary);
     }
-    .hero-title {
-      font-size: clamp(2.4rem, 4.5vw, 3.8rem);
-      line-height: 1.15;
+
+    .eyebrow {
+      color: var(--primary);
+      font-size: 0.78rem;
       font-weight: 800;
-      letter-spacing: -0.03em;
-      margin-bottom: 1.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
     }
-    .gradient-text {
-      background: linear-gradient(135deg, #ffffff 40%, #38bdf8 85%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-subtitle {
-      font-size: 1.15rem;
-      color: var(--text-muted);
-      margin-bottom: 2rem;
-      max-width: 560px;
-    }
-    .hero-cta-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      margin-bottom: 2rem;
-    }
+
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.6rem;
-      padding: 0.85rem 1.6rem;
+      min-height: 46px;
+      padding: 0.8rem 1.35rem;
       border-radius: 12px;
-      font-size: 0.95rem;
-      font-weight: 600;
+      font-size: 0.94rem;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.2s ease;
       border: 1px solid transparent;
     }
+
     .btn-primary {
-      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       color: #04101e;
       box-shadow: 0 4px 18px rgba(56, 189, 248, 0.3);
     }
-    .btn-primary:hover {
+
+    .btn-primary:hover,
+    .btn-primary:focus-visible {
       transform: translateY(-2px);
       box-shadow: 0 6px 24px rgba(56, 189, 248, 0.5);
     }
+
     .btn-secondary {
       background: rgba(255, 255, 255, 0.05);
       border-color: var(--border-subtle);
       color: var(--text-main);
     }
-    .btn-secondary:hover {
+
+    .btn-secondary:hover,
+    .btn-secondary:focus-visible {
       background: rgba(255, 255, 255, 0.1);
       transform: translateY(-2px);
     }
 
-    /* THE RADIAL WHEEL COMPONENT */
+    .muted {
+      color: var(--text-muted);
+    }
+
+    /* HERO */
+    .hero {
+      padding: 5.5rem 0 4.5rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      line-height: 1.08;
+      font-weight: 850;
+      letter-spacing: -0.045em;
+      margin-bottom: 1.4rem;
+      max-width: 760px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #ffffff 35%, #38bdf8 85%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      max-width: 620px;
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      color: var(--text-subtle);
+      font-size: 0.88rem;
+    }
+
+    .meta-pill {
+      padding: 0.34rem 0.65rem;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+    }
+
+    /* WHEEL */
     .wheel-wrapper {
       position: relative;
       width: 440px;
@@ -209,38 +389,42 @@
       user-select: none;
       filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.65));
     }
+
     .wheel-svg-canvas {
       width: 100%;
       height: 100%;
       overflow: visible;
     }
+
     .wheel-sector-wedge {
-      fill: #222b3b;
-      stroke: #333d52;
+      fill: var(--wheel-fill);
+      stroke: var(--wheel-stroke);
       stroke-width: 1.5;
       cursor: pointer;
-      transition: fill 0.18s ease, stroke 0.18s ease;
+      transition: fill 0.18s ease, stroke 0.18s ease, filter 0.18s ease;
       transform-origin: 220px 220px;
     }
+
     .wheel-sector-wedge:hover,
     .wheel-sector-wedge.active-wedge {
-      fill: #333f56;
+      fill: var(--wheel-fill-hover);
       stroke: #4ba2ea;
       filter: brightness(1.15);
     }
+
     .wheel-icon-item {
       pointer-events: none;
-      transition: transform 0.18s ease;
-      transform-origin: center;
     }
+
     .wheel-icon-item text {
       fill: #f1f5f9;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 650;
       letter-spacing: 0.01em;
       text-anchor: middle;
       font-family: var(--font);
     }
+
     .wheel-center-btn {
       position: absolute;
       top: 50%;
@@ -249,132 +433,175 @@
       height: 78px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
-      background: radial-gradient(circle at 40% 35%, #eb5b58 0%, #c93636 100%);
+      background: radial-gradient(circle at 40% 35%, #eb5b58 0%, var(--wheel-red-dark) 100%);
       border: 3px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 0 4px var(--wheel-red-ring), 0 8px 24px rgba(0, 0, 0, 0.4);
+      box-shadow:
+        0 0 0 4px var(--wheel-red-ring),
+        0 8px 24px rgba(0, 0, 0, 0.4);
       display: grid;
       place-items: center;
       cursor: pointer;
       z-index: 10;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .wheel-center-btn:hover {
+
+    .wheel-center-btn:hover,
+    .wheel-center-btn:focus-visible {
       transform: translate(-50%, -50%) scale(1.06);
-      box-shadow: 0 0 0 6px var(--wheel-red-ring), 0 10px 28px rgba(220, 69, 69, 0.5);
+      box-shadow:
+        0 0 0 6px var(--wheel-red-ring),
+        0 10px 28px rgba(220, 69, 69, 0.5);
     }
+
     .wheel-center-btn svg {
       width: 26px;
       height: 26px;
-      stroke: #ffffff;
+      stroke: #fff;
       stroke-width: 3.2;
       stroke-linecap: round;
     }
 
-    /* SECTION BASICS */
-    section { padding: 5rem 0; }
-    .section-header {
-      text-align: center;
-      max-width: 680px;
-      margin: 0 auto 3.5rem;
-    }
-    .section-header h2 {
-      font-size: clamp(2rem, 3.5vw, 2.75rem);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.75rem;
-    }
-    .section-header p {
-      color: var(--text-muted);
-      font-size: 1.05rem;
-    }
-
-    /* DEMO SECTION */
+    /* DEMO */
     .demo-container {
       background: radial-gradient(circle at center, #1b2230 0%, #111621 100%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
       border-radius: 28px;
-      padding: 3.5rem 3rem;
+      padding: 3rem;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 3.5rem;
+      gap: 3rem;
       align-items: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     }
+
     .demo-info-panel {
-      background: rgba(15, 20, 29, 0.6);
+      background: var(--bg-panel);
       border: 1px solid var(--border-subtle);
       border-radius: 20px;
-      padding: 2.25rem;
+      padding: 2.2rem;
     }
+
     .demo-badge {
       font-size: 0.8rem;
-      font-weight: 700;
+      font-weight: 800;
       color: var(--primary);
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.8rem;
       display: inline-block;
     }
+
     .demo-title {
-      font-size: 2.2rem;
+      font-size: 2.1rem;
       font-weight: 800;
-      margin-bottom: 1rem;
+      margin-bottom: 0.9rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
+      line-height: 1.15;
     }
+
     .demo-desc {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       color: var(--text-muted);
-      margin-bottom: 2rem;
-      line-height: 1.6;
-      min-height: 56px;
+      margin-bottom: 1.7rem;
+      line-height: 1.65;
+      min-height: 82px;
     }
+
     .demo-hint-box {
       background: rgba(56, 189, 248, 0.06);
       border: 1px solid rgba(56, 189, 248, 0.2);
       border-radius: 12px;
-      padding: 1rem 1.25rem;
+      padding: 1rem 1.15rem;
       font-size: 0.9rem;
       color: var(--text-muted);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.75rem;
     }
+
+    .demo-hint-box svg {
+      flex: 0 0 auto;
+      margin-top: 0.1rem;
+    }
+
     .demo-hint-box kbd {
       background: #242c3d;
       border: 1px solid var(--border-subtle);
       border-radius: 6px;
-      padding: 0.2rem 0.5rem;
+      padding: 0.18rem 0.45rem;
       color: var(--primary);
-      font-family: monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
-    /* ACTION CARDS */
+    /* INTRO SPLIT */
+    .split-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 2.4rem;
+    }
+
+    .info-card h2,
+    .info-card h3 {
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.9rem;
+    }
+
+    .info-card h2 {
+      font-size: 1.7rem;
+    }
+
+    .info-card h3 {
+      font-size: 1.35rem;
+    }
+
+    .info-card p {
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .info-card p + p {
+      margin-top: 1rem;
+    }
+
+    /* ACTIONS */
     .actions-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
+
     .action-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: 18px;
-      padding: 1.75rem 1.5rem;
+      padding: 1.55rem;
       transition: all 0.2s ease;
-      cursor: default;
     }
+
     .action-card:hover {
       background: var(--bg-card-hover);
       border-color: var(--border-focus);
       transform: translateY(-3px);
     }
+
     .action-card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.25rem;
+      gap: 0.75rem;
+      margin-bottom: 1.1rem;
     }
+
     .action-icon-pill {
       width: 44px;
       height: 44px;
@@ -383,27 +610,70 @@
       display: grid;
       place-items: center;
       font-size: 1.25rem;
-    }
-    .action-dir-badge {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--primary);
-      background: rgba(56, 189, 248, 0.1);
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
-    }
-    .action-card h3 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    .action-card p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.5;
+      flex: 0 0 auto;
     }
 
-    /* TIMELINE */
+    .action-dir-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--primary);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.24rem 0.55rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .action-card h3 {
+      font-size: 1.12rem;
+      font-weight: 750;
+      margin-bottom: 0.5rem;
+    }
+
+    .action-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    /* WHY */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .why-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 1.7rem;
+    }
+
+    .why-number {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--primary);
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .why-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .why-card p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* STEPS */
     .timeline-steps {
       display: grid;
       grid-template-columns: 1fr 40px 1fr 40px 1fr;
@@ -412,20 +682,22 @@
       background: rgba(26, 33, 47, 0.5);
       border: 1px solid var(--border-subtle);
       border-radius: 24px;
-      padding: 3rem 2rem;
+      padding: 2.7rem 2rem;
     }
+
     .step-card {
       background: rgba(15, 20, 29, 0.8);
       border: 1px solid var(--border-subtle);
       border-radius: 18px;
-      padding: 2rem;
+      padding: 2rem 1.5rem;
       text-align: center;
     }
+
     .step-number {
-      display: inline-block;
+      display: inline-grid;
+      place-items: center;
       width: 34px;
       height: 34px;
-      line-height: 32px;
       border-radius: 50%;
       background: rgba(56, 189, 248, 0.15);
       border: 1px solid var(--primary);
@@ -433,6 +705,18 @@
       font-weight: 800;
       margin-bottom: 1rem;
     }
+
+    .step-card h3 {
+      font-size: 1.15rem;
+    }
+
+    .step-card p {
+      color: var(--text-muted);
+      font-size: 0.94rem;
+      line-height: 1.6;
+      margin-top: 0.5rem;
+    }
+
     .timeline-arrow {
       display: grid;
       place-items: center;
@@ -440,66 +724,146 @@
       opacity: 0.6;
     }
 
+    /* PRIVACY */
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.5rem;
+    }
+
+    .privacy-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 2.4rem;
+    }
+
+    .privacy-card h3 {
+      font-size: 1.35rem;
+      margin-bottom: 0.7rem;
+    }
+
+    .privacy-card p {
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .privacy-note {
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.06);
+      border: 1px solid rgba(56, 189, 248, 0.16);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
     /* FAQ */
     .faq-list {
-      max-width: 800px;
+      max-width: 820px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.9rem;
     }
+
     .faq-item {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: 14px;
       overflow: hidden;
     }
+
     .faq-question {
       width: 100%;
       text-align: left;
       background: none;
       border: none;
-      padding: 1.25rem 1.5rem;
-      font-size: 1.05rem;
-      font-weight: 600;
+      padding: 1.25rem 1.45rem;
+      font-size: 1.02rem;
+      font-weight: 700;
       color: var(--text-main);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 1rem;
       cursor: pointer;
     }
+
+    .faq-question:hover,
+    .faq-question:focus-visible {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
     .faq-toggle-icon {
       width: 18px;
       height: 18px;
       stroke: var(--primary);
       transition: transform 0.25s ease;
+      flex: 0 0 auto;
     }
+
     .faq-answer {
-      padding: 0 1.5rem 1.25rem;
-      font-size: 0.95rem;
+      padding: 0 1.45rem 1.25rem;
+      font-size: 0.93rem;
       color: var(--text-muted);
-      line-height: 1.6;
+      line-height: 1.7;
+    }
+
+    .faq-item:not(.open) .faq-answer {
       display: none;
     }
-    .faq-item.open .faq-answer { display: block; }
-    .faq-item.open .faq-toggle-icon { transform: rotate(180deg); }
 
-    /* CTA BANNER */
+    .faq-item.open .faq-toggle-icon {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer a {
+      color: var(--primary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* CTA */
     .cta-banner {
-      background: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.2) 0%, rgba(20, 26, 38, 0.95) 75%);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.2) 0%, rgba(20, 26, 38, 0.95) 75%);
       border: 1px solid rgba(56, 189, 248, 0.3);
       border-radius: 28px;
-      padding: 5rem 2rem;
+      padding: 4.5rem 2rem;
       text-align: center;
+    }
+
+    .cta-banner h2 {
+      font-size: clamp(2.2rem, 4vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.035em;
+      margin-bottom: 0.6rem;
+    }
+
+    .cta-tagline {
+      color: var(--primary);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1.7rem;
+    }
+
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.8rem;
     }
 
     /* FOOTER */
     footer {
       border-top: 1px solid var(--border-subtle);
-      padding: 3rem 0;
+      padding: 2.8rem 0;
       color: var(--text-subtle);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
     }
+
     .footer-content {
       display: flex;
       justify-content: space-between;
@@ -508,417 +872,1090 @@
       gap: 1rem;
     }
 
-    /* RESPONSIVE */
-    @media (max-width: 960px) {
-      .hero-grid, .demo-container { grid-template-columns: 1fr; }
-      .actions-grid { grid-template-columns: repeat(2, 1fr); }
-      .timeline-steps { grid-template-columns: 1fr; }
-      .timeline-arrow { transform: rotate(90deg); margin: 0 auto; }
-      .wheel-wrapper { width: 340px; height: 340px; }
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
     }
+
+    .footer-links a:hover,
+    .footer-links a:focus-visible {
+      color: var(--text-main);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1050px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-copy {
+        text-align: center;
+      }
+
+      .hero-subtitle {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .hero-cta-group,
+      .hero-meta {
+        justify-content: center;
+      }
+
+      .demo-container {
+        grid-template-columns: 1fr;
+      }
+
+      .privacy-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .why-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 960px) {
+      .timeline-steps {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-arrow {
+        transform: rotate(90deg);
+        margin: 0 auto;
+      }
+
+      .wheel-wrapper {
+        width: 340px;
+        height: 340px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .nav-links {
+        display: none;
+      }
+
+      .split-grid,
+      .why-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 640px) {
-      .actions-grid { grid-template-columns: 1fr; }
-      .nav-links { display: none; }
-      .wheel-wrapper { width: 300px; height: 300px; }
-      .wheel-center-btn { width: 62px; height: 62px; }
+      .container {
+        width: min(100% - 1.5rem, 1200px);
+      }
+
+      section {
+        padding: 4rem 0;
+      }
+
+      .hero {
+        padding: 4rem 0 3.5rem;
+      }
+
+      .actions-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .demo-container {
+        padding: 1.25rem;
+      }
+
+      .demo-info-panel,
+      .info-card,
+      .privacy-card {
+        padding: 1.6rem;
+      }
+
+      .wheel-wrapper {
+        width: 300px;
+        height: 300px;
+      }
+
+      .wheel-center-btn {
+        width: 62px;
+        height: 62px;
+      }
+
+      .cta-banner {
+        padding: 3.5rem 1.25rem;
+      }
+
+      .footer-content {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+      }
     }
   </style>
+
 </head>
+
 <body>
 
   <!-- HEADER -->
+
   <header class="nav">
     <div class="container nav-content">
       <a href="#" class="brand" aria-label="QuickWheel Home">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24" fill="none"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+          </svg>
         </div>
         <span>QuickWheel</span>
       </a>
-      <nav class="nav-links">
-        <a href="#demo" class="nav-link">Interactive Wheel</a>
-        <a href="#actions" class="nav-link">8 Actions</a>
-        <a href="#how-it-works" class="nav-link">How It Works</a>
-        <a href="#faq" class="nav-link">FAQ</a>
-      </nav>
-      <a href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/" target="_blank" rel="noopener noreferrer" class="nav-btn">Install Extension</a>
-    </div>
+
+```
+  <nav class="nav-links" aria-label="Primary navigation">
+    <a href="#demo" class="nav-link">Interactive Wheel</a>
+    <a href="#actions" class="nav-link">8 Actions</a>
+    <a href="#how-it-works" class="nav-link">How It Works</a>
+    <a href="#faq" class="nav-link">FAQ</a>
+  </nav>
+
+  <a
+    href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="nav-btn"
+  >
+    Install for Firefox
+  </a>
+</div>
+```
+
   </header>
 
   <main>
-    <!-- HERO -->
-    <section class="hero">
-      <div class="container hero-grid">
-        <div>
-          <div class="badge">
-            <span class="badge-dot"></span> Single-Ring Radial Navigation
-          </div>
-          <h1 class="hero-title">
-            <span class="gradient-text">QuickWheel</span><br />
-            A radial navigation wheel for faster browsing.
-          </h1>
-          <p class="hero-subtitle">
-            Turn your middle mouse button into instant browser shortcuts. Hold middle-click or press <strong>Alt + Q</strong>, flick in a direction, and execute commands instantly.
-          </p>
-          <div class="hero-cta-group">
-            <a href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.5V11h-2v5.5H8.5L12 20l3.5-3.5z"/></svg>
-              Install for Firefox
-            </a>
-            <a href="https://sourceforge.net/projects/quickwheel/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/></svg>
-              Download for Chrome
-            </a>
-            <a href="https://github.com/fluryjanis/QuickWheel" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-              GitHub
-            </a>
-          </div>
-        </div>
 
-        <!-- HERO RADIAL WHEEL DISPLAY -->
-        <div>
-          <div class="wheel-wrapper" id="heroWheel">
-            <svg class="wheel-svg-canvas" viewBox="0 0 440 440" id="heroWheelSvg">
-              <!-- Outer Dark Shell -->
-              <circle cx="220" cy="220" r="216" fill="#181e2a" stroke="#2a3447" stroke-width="2" />
-              <!-- Slices Container -->
-              <g id="heroWheelSlices"></g>
-            </svg>
-            <!-- Center Red X Button -->
-            <div class="wheel-center-btn" title="Close Wheel">
-              <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-            </div>
-          </div>
+```
+<!-- HERO -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Version 1.1.0 · Single-Ring Radial Navigation
+      </div>
+
+      <h1 class="hero-title">
+        <span class="gradient-text">Common browser actions.</span><br />
+        One flick away.
+      </h1>
+
+      <p class="hero-subtitle">
+        QuickWheel turns your middle mouse button into an 8-direction
+        radial navigation wheel. Hold, flick toward an action, and release.
+        Your most common browser commands stay right around your cursor.
+      </p>
+
+      <div class="hero-cta-group">
+        <a
+          href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-primary"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.5V11h-2v5.5H8.5L12 20l3.5-3.5z"></path>
+          </svg>
+          Install for Firefox
+        </a>
+
+        <a
+          href="https://sourceforge.net/projects/quickwheel/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-secondary"
+        >
+          Download for Chrome
+        </a>
+
+        <a
+          href="https://github.com/fluryjanis/QuickWheel"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-secondary"
+        >
+          View on GitHub
+        </a>
+      </div>
+
+      <div class="hero-meta" aria-label="QuickWheel highlights">
+        <span class="meta-pill">8 browser actions</span>
+        <span class="meta-pill">Middle-click + Alt + Q</span>
+        <span class="meta-pill">Open source</span>
+        <span class="meta-pill">No analytics</span>
+      </div>
+    </div>
+
+    <!-- HERO WHEEL -->
+    <div>
+      <div class="wheel-wrapper" id="heroWheel" aria-hidden="true">
+        <svg
+          class="wheel-svg-canvas"
+          viewBox="0 0 440 440"
+          id="heroWheelSvg"
+        >
+          <circle
+            cx="220"
+            cy="220"
+            r="216"
+            fill="#181e2a"
+            stroke="#2a3447"
+            stroke-width="2"
+          />
+          <g id="heroWheelSlices"></g>
+        </svg>
+
+        <div class="wheel-center-btn" title="Close Wheel">
+          <svg viewBox="0 0 24 24" fill="none">
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+          </svg>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
 
-    <!-- INTERACTIVE DEMONSTRATION -->
-    <section id="demo">
-      <div class="container">
-        <div class="section-header">
-          <div class="badge">Interactive Simulation</div>
-          <h2>Explore the Wheel</h2>
-          <p>Hover over each sector or move your mouse around the dial to preview the actions.</p>
+<!-- INTERACTIVE DEMO -->
+<section id="demo">
+  <div class="container">
+    <div class="section-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Interactive Demo
+      </div>
+      <h2>Try the eight directions</h2>
+      <p>
+        Move around the wheel to see what each direction does.
+        QuickWheel uses the same simple radial layout for every action.
+      </p>
+    </div>
+
+    <div class="demo-container">
+      <div
+        class="wheel-wrapper"
+        id="interactiveWheel"
+        aria-label="Interactive QuickWheel demonstration"
+        role="img"
+      >
+        <svg
+          class="wheel-svg-canvas"
+          viewBox="0 0 440 440"
+          id="interactiveWheelSvg"
+        >
+          <circle
+            cx="220"
+            cy="220"
+            r="216"
+            fill="#181e2a"
+            stroke="#2a3447"
+            stroke-width="2"
+          />
+          <g id="interactiveWheelSlices"></g>
+        </svg>
+
+        <button
+          class="wheel-center-btn"
+          id="interactiveCenterBtn"
+          type="button"
+          aria-label="Close wheel"
+          title="Close Wheel"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="demo-info-panel">
+        <span class="demo-badge" id="demoDir">DIRECTION: NORTH (↑)</span>
+
+        <div class="demo-title" id="demoTitle">
+          <span aria-hidden="true">⎘</span>
+          Duplicate Tab
         </div>
 
-        <div class="demo-container">
-          <div class="wheel-wrapper" id="interactiveWheel">
-            <svg class="wheel-svg-canvas" viewBox="0 0 440 440" id="interactiveWheelSvg">
-              <circle cx="220" cy="220" r="216" fill="#181e2a" stroke="#2a3447" stroke-width="2" />
-              <g id="interactiveWheelSlices"></g>
-            </svg>
-            <div class="wheel-center-btn" id="interactiveCenterBtn">
-              <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-            </div>
-          </div>
+        <p class="demo-desc" id="demoDesc">
+          Open a duplicate of the current tab without going through the
+          tab menu.
+        </p>
 
-          <div class="demo-info-panel">
-            <span class="demo-badge" id="demoDir">DIRECTION: NORTH (↑)</span>
-            <div class="demo-title" id="demoTitle">Duplicate Tab</div>
-            <p class="demo-desc" id="demoDesc">
-              Clone your current browser tab in the background without needing to copy-paste URLs.
-            </p>
-            <div class="demo-hint-box">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <span>Hold <strong>Middle Mouse Button</strong> or press <kbd>Alt</kbd> + <kbd>Q</kbd> to summon the wheel anywhere.</span>
-            </div>
-          </div>
+        <div class="demo-hint-box">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+
+          <span>
+            Hold <strong>Middle Mouse Button</strong> or press
+            <kbd>Alt</kbd> + <kbd>Q</kbd>, then move toward an action.
+            Release to execute it.
+          </span>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
 
-    <!-- WHAT IS QUICKWHEEL & PHILOSOPHY -->
-    <section>
-      <div class="container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
-        <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 2.5rem;">
-          <h2 style="font-size: 1.6rem; margin-bottom: 1rem;">What Is QuickWheel?</h2>
-          <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            QuickWheel is a browser extension that uses a <strong>radial navigation wheel</strong> and mouse gestures to place frequent browser actions directly around your pointer.
-          </p>
-          <p style="color: var(--text-muted);">
-            Instead of shifting your cursor across high-resolution displays to click small tabs, buttons, or submenus, you execute actions through fast directional flicks.
-          </p>
+<!-- WHAT IS QUICKWHEEL -->
+<section>
+  <div class="container split-grid">
+    <article class="info-card">
+      <div class="eyebrow">What is QuickWheel?</div>
+
+      <h2>A radial navigation wheel for the browser.</h2>
+
+      <p>
+        QuickWheel is a lightweight browser extension that puts common
+        browser actions directly around your cursor.
+      </p>
+
+      <p>
+        Instead of moving through browser menus or reaching for controls
+        around the screen, you can hold middle-click, flick in a direction,
+        and release.
+      </p>
+    </article>
+
+    <article class="info-card">
+      <div class="eyebrow">Why a radial wheel?</div>
+
+      <h2>Use direction instead of hunting for controls.</h2>
+
+      <p>
+        A radial menu gives each action a fixed direction around the
+        pointer. Once you learn where an action lives, the gesture becomes
+        a simple movement rather than another trip through a menu.
+      </p>
+
+      <p>
+        QuickWheel keeps that interaction inside a single ring so the
+        interface stays compact and easy to scan.
+      </p>
+    </article>
+  </div>
+</section>
+
+<!-- 8 ACTIONS -->
+<section id="actions">
+  <div class="container">
+    <div class="section-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Commands
+      </div>
+
+      <h2>Eight actions around your cursor</h2>
+
+      <p>
+        QuickWheel's current wheel combines tab management, navigation,
+        search, copying, translation, and media control.
+      </p>
+    </div>
+
+    <div class="actions-grid">
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">⎘</div>
+          <span class="action-dir-badge">North ↑</span>
         </div>
+        <h3>Duplicate Tab</h3>
+        <p>
+          Duplicate the current browser tab without opening the tab menu.
+        </p>
+      </article>
 
-        <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 2.5rem;">
-          <h2 style="font-size: 1.6rem; margin-bottom: 1rem;">Why a Radial Navigation Wheel?</h2>
-          <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            Standard browser controls require pixel-precise movement to distant screen edges. In contrast, a radial menu positions every target at an identical, comfortable distance around your cursor.
-          </p>
-          <p style="color: var(--text-muted);">
-            Because selections rely on direction rather than coordinates, navigation quickly converts into instinctive muscle memory.
-          </p>
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">▲</div>
+          <span class="action-dir-badge">North-East ↗</span>
+        </div>
+        <h3>Jump to Top</h3>
+        <p>
+          Smoothly scroll a long webpage back to the top.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">🔍</div>
+          <span class="action-dir-badge">East →</span>
+        </div>
+        <h3>Focus Search</h3>
+        <p>
+          Finds common search inputs, including inputs inside supported
+          Shadow DOM components, and focuses them.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">🔇</div>
+          <span class="action-dir-badge">South-East ↘</span>
+        </div>
+        <h3>Mute / Unmute Tab</h3>
+        <p>
+          Toggle audio for the current tab without leaving the page.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">📝</div>
+          <span class="action-dir-badge">South ↓</span>
+        </div>
+        <h3>Copy Markdown</h3>
+        <p>
+          Copy the page as a Markdown link, or include selected text as a
+          Markdown blockquote above the link.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">🔗</div>
+          <span class="action-dir-badge">South-West ↙</span>
+        </div>
+        <h3>Copy Link</h3>
+        <p>
+          Copy the current page URL directly to the clipboard.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">🌐</div>
+          <span class="action-dir-badge">West ←</span>
+        </div>
+        <h3>Translate Page</h3>
+        <p>
+          Translate readable page text in place without opening a separate
+          translation tab.
+        </p>
+      </article>
+
+      <article class="action-card">
+        <div class="action-card-header">
+          <div class="action-icon-pill">↺</div>
+          <span class="action-dir-badge">North-West ↖</span>
+        </div>
+        <h3>Reopen Closed Tab</h3>
+        <p>
+          Restore the most recently closed browser tab with one flick.
+        </p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- WHY QUICKWHEEL -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Built Around the Gesture
+      </div>
+
+      <h2>Designed to stay out of the way</h2>
+
+      <p>
+        QuickWheel is built around a simple interaction instead of adding
+        another permanent toolbar to your browser.
+      </p>
+    </div>
+
+    <div class="why-grid">
+
+      <article class="why-card">
+        <div class="why-number">1</div>
+        <h3>Single-ring design</h3>
+        <p>
+          Eight equal radial sectors keep the wheel compact and make every
+          action part of the same visual system.
+        </p>
+      </article>
+
+      <article class="why-card">
+        <div class="why-number">2</div>
+        <h3>Gesture-first control</h3>
+        <p>
+          The interaction is based on the direction of your pointer rather
+          than clicking tiny interface controls.
+        </p>
+      </article>
+
+      <article class="why-card">
+        <div class="why-number">3</div>
+        <h3>Middle-click aware</h3>
+        <p>
+          Quick middle-clicks below the activation threshold are left
+          available for normal browser behavior.
+        </p>
+      </article>
+
+      <article class="why-card">
+        <div class="why-number">4</div>
+        <h3>Scroll protection</h3>
+        <p>
+          Scrolling is locked while the wheel is active so the page does
+          not move underneath the gesture.
+        </p>
+      </article>
+
+      <article class="why-card">
+        <div class="why-number">5</div>
+        <h3>Page-style isolation</h3>
+        <p>
+          The wheel interface uses Shadow DOM isolation so page styles are
+          less likely to interfere with its layout.
+        </p>
+      </article>
+
+      <article class="why-card">
+        <div class="why-number">6</div>
+        <h3>Lightweight by design</h3>
+        <p>
+          QuickWheel stays inactive until you invoke it instead of
+          occupying permanent browser interface space.
+        </p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Workflow
+      </div>
+
+      <h2>Hold → Flick → Release</h2>
+
+      <p>
+        The whole interaction is built around three simple steps.
+      </p>
+    </div>
+
+    <div class="timeline-steps">
+
+      <article class="step-card">
+        <span class="step-number">1</span>
+        <h3>Hold</h3>
+        <p>
+          Hold the middle mouse button anywhere on a webpage,
+          or activate QuickWheel with <strong>Alt + Q</strong>.
+        </p>
+      </article>
+
+      <div class="timeline-arrow" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+
+      <article class="step-card">
+        <span class="step-number">2</span>
+        <h3>Flick</h3>
+        <p>
+          Move the pointer away from the center toward the action you want
+          to use.
+        </p>
+      </article>
+
+      <div class="timeline-arrow" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+
+      <article class="step-card">
+        <span class="step-number">3</span>
+        <h3>Release</h3>
+        <p>
+          Let go to execute the selected browser action immediately.
+        </p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section>
+  <div class="container privacy-grid">
+
+    <article class="privacy-card">
+      <div class="eyebrow">Privacy</div>
+
+      <h3>No analytics or external tracking</h3>
+
+      <p>
+        QuickWheel does not use analytics, advertising trackers, or
+        telemetry to monitor how you browse. Its normal tab, search,
+        navigation, and clipboard actions are handled by the extension
+        itself.
+      </p>
+
+      <div class="privacy-note">
+        <strong>Translation is the exception:</strong>
+        when you use Translate Page, QuickWheel sends the readable text it
+        is translating to Google Translate and uses the returned
+        translations to replace that text on the page.
+      </div>
+    </article>
+
+    <article class="privacy-card">
+      <div class="eyebrow">Open Source</div>
+
+      <h3>See how QuickWheel works</h3>
+
+      <p>
+        The QuickWheel source code is publicly available on GitHub under
+        the MIT License. You can inspect the extension, follow development,
+        or build it yourself.
+      </p>
+
+      <div style="margin-top:1.25rem;">
+        <a
+          href="https://github.com/fluryjanis/QuickWheel"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-secondary"
+        >
+          View Source on GitHub
+        </a>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+
+    <div class="section-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        FAQ
+      </div>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <p>
+        The practical details behind the QuickWheel interaction.
+      </p>
+    </div>
+
+    <div class="faq-list">
+
+      <div class="faq-item open">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="true"
+          aria-controls="faq-answer-1"
+        >
+          <span>What is QuickWheel?</span>
+
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-1">
+          QuickWheel is a browser extension that adds an 8-direction radial
+          navigation wheel to your browser. Hold middle-click or press
+          <strong>Alt + Q</strong>, move toward an action, and release.
         </div>
       </div>
-    </section>
 
-    <!-- 8 ACTIONS GRID -->
-    <section id="actions">
-      <div class="container">
-        <div class="section-header">
-          <div class="badge">Commands</div>
-          <h2>The 8 Wheel Actions</h2>
-          <p>Carefully balanced for fast everyday browsing and tab management.</p>
-        </div>
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-2"
+        >
+          <span>How do I open QuickWheel?</span>
 
-        <div class="actions-grid">
-          <!-- 1. Duplicate Tab -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">📑</div>
-              <span class="action-dir-badge">North ↑</span>
-            </div>
-            <h3>Duplicate Tab</h3>
-            <p>Clones your active tab state immediately in the background without right-clicking.</p>
-          </div>
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
 
-          <!-- 2. Jump to Top -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">▲</div>
-              <span class="action-dir-badge">North-East ↗</span>
-            </div>
-            <h3>Jump to Top</h3>
-            <p>Smoothly scrolls straight back to the top of any lengthy page or document.</p>
-          </div>
-
-          <!-- 3. Focus Search -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">🔍</div>
-              <span class="action-dir-badge">East →</span>
-            </div>
-            <h3>Focus Search</h3>
-            <p>Jumps cursor focus directly to the on-page search field or browser address bar.</p>
-          </div>
-
-          <!-- 4. Mute Tab -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">🔇</div>
-              <span class="action-dir-badge">South-East ↘</span>
-            </div>
-            <h3>Mute Tab</h3>
-            <p>Instantly silences noisy media players, video meetings, or autoplays.</p>
-          </div>
-
-          <!-- 5. Copy Markdown -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">📝</div>
-              <span class="action-dir-badge">South ↓</span>
-            </div>
-            <h3>Copy Markdown</h3>
-            <p>Copies page title and clean link formatted as <code>[Title](URL)</code> to your clipboard.</p>
-          </div>
-
-          <!-- 6. Copy Link -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">🔗</div>
-              <span class="action-dir-badge">South-West ↙</span>
-            </div>
-            <h3>Copy Link</h3>
-            <p>Copies the current web page address to your clipboard ready for instant sharing.</p>
-          </div>
-
-          <!-- 7. Translate -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">🌐</div>
-              <span class="action-dir-badge">West ←</span>
-            </div>
-            <h3>Translate</h3>
-            <p>Instantly translates foreign language web content into your native tongue.</p>
-          </div>
-
-          <!-- 8. Reopen Tab -->
-          <div class="action-card">
-            <div class="action-card-header">
-              <div class="action-icon-pill">↺</div>
-              <span class="action-dir-badge">North-West ↖</span>
-            </div>
-            <h3>Reopen Tab</h3>
-            <p>Quickly restores the most recently closed browser tab with a single Northwest flick.</p>
-          </div>
+        <div class="faq-answer" id="faq-answer-2">
+          Hold the middle mouse button on a webpage or use
+          <strong>Alt + Q</strong>. With the mouse trigger, QuickWheel waits
+          for a 150 ms hold before opening the wheel.
         </div>
       </div>
-    </section>
 
-    <!-- HOLD FLICK DONE -->
-    <section id="how-it-works">
-      <div class="container">
-        <div class="section-header">
-          <div class="badge">Workflow</div>
-          <h2>Hold → Flick → Action</h2>
-          <p>Effortless browser navigation in three simple steps.</p>
-        </div>
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-3"
+        >
+          <span>What happens if I click the middle mouse button normally?</span>
 
-        <div class="timeline-steps">
-          <div class="step-card">
-            <span class="step-number">1</span>
-            <h3>Hold</h3>
-            <p style="color:var(--text-muted);font-size:0.95rem;margin-top:0.5rem;">
-              Press and hold middle-click or press <strong>Alt + Q</strong>.
-            </p>
-          </div>
-          <div class="timeline-arrow">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-          <div class="step-card">
-            <span class="step-number">2</span>
-            <h3>Flick</h3>
-            <p style="color:var(--text-muted);font-size:0.95rem;margin-top:0.5rem;">
-              The radial navigation wheel opens centered on your cursor. Flick toward an action.
-            </p>
-          </div>
-          <div class="timeline-arrow">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-          <div class="step-card">
-            <span class="step-number">3</span>
-            <h3>Done</h3>
-            <p style="color:var(--text-muted);font-size:0.95rem;margin-top:0.5rem;">
-              Release the button to instantly execute the action.
-            </p>
-          </div>
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-3">
+          Quick middle-clicks below QuickWheel's hold threshold are not
+          treated as wheel gestures, allowing normal browser middle-click
+          behavior such as autoscroll to remain available.
         </div>
       </div>
-    </section>
 
-    <!-- PRIVACY & AUDIENCE -->
-    <section>
-      <div class="container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 2.5rem;">
-          <h3 style="font-size: 1.4rem; margin-bottom: 0.75rem;">Privacy-First Engineering</h3>
-          <p style="color: var(--text-muted); line-height: 1.6;">
-            QuickWheel operates entirely locally on your machine. It has zero external tracking, no telemetry, and does not record or transmit browsing data.
-          </p>
-        </div>
-        <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 2.5rem;">
-          <h3 style="font-size: 1.4rem; margin-bottom: 0.75rem;">Built for Focused Browsing</h3>
-          <p style="color: var(--text-muted); line-height: 1.6;">
-            Ideal for power users, researchers, engineers, and keyboard/mouse gesture enthusiasts seeking minimal friction tab control.
-          </p>
-        </div>
-      </div>
-    </section>
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-4"
+        >
+          <span>Does QuickWheel work with Chrome?</span>
 
-    <!-- FAQ -->
-    <section id="faq">
-      <div class="container">
-        <div class="section-header">
-          <div class="badge">FAQ</div>
-          <h2>Frequently Asked Questions</h2>
-        </div>
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
 
-        <div class="faq-list">
-          <div class="faq-item">
-            <button class="faq-question" type="button">
-              <span>What is QuickWheel?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="faq-answer">
-              QuickWheel is a browser extension that equips your mouse cursor with an 8-direction radial navigation menu for instant gesture shortcuts.
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" type="button">
-              <span>How do I open QuickWheel?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="faq-answer">
-              Hold down your middle mouse button (scroll wheel) or press <strong>Alt + Q</strong> anywhere on a webpage.
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" type="button">
-              <span>Can I use QuickWheel with Chrome?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="faq-answer">
-              Yes! You can download the Chrome package directly from <a href="https://sourceforge.net/projects/quickwheel/" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: underline;">SourceForge</a>.
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" type="button">
-              <span>Does it preserve middle-click autoscroll?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="faq-answer">
-              Yes! QuickWheel includes threshold detection so native browser middle-click autoscroll remains intact when not flicking an action.
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" type="button">
-              <span>Is QuickWheel open source?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="faq-answer">
-              Yes, QuickWheel is fully open source on GitHub under an open permissive license.
-            </div>
-          </div>
+        <div class="faq-answer" id="faq-answer-4">
+          Yes. A Chrome package is available through
+          <a
+            href="https://sourceforge.net/projects/quickwheel/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SourceForge
+          </a>.
         </div>
       </div>
-    </section>
 
-    <!-- FINAL CTA -->
-    <section>
-      <div class="container">
-        <div class="cta-banner">
-          <h2 style="font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: 0.5rem;">Ready to browse faster?</h2>
-          <div style="font-size: 1.3rem; color: var(--primary); font-weight: 600; margin-bottom: 2rem;">Hold. Flick. Done.</div>
-          <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-            <a href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Install for Firefox</a>
-            <a href="https://sourceforge.net/projects/quickwheel/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Download for Chrome</a>
-            <a href="https://github.com/fluryjanis/QuickWheel" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View Source on GitHub</a>
-          </div>
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-5"
+        >
+          <span>How does Focus Search work?</span>
+
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-5">
+          QuickWheel looks for common search inputs and can inspect supported
+          Shadow DOM components. On sites that expose keyboard search
+          shortcuts, it can also trigger the slash-search behavior.
         </div>
       </div>
-    </section>
+
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-6"
+        >
+          <span>What does Copy Markdown do?</span>
+
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-6">
+          With no selection, it copies the page title and URL as a Markdown
+          link. When text is selected, the selection is copied as a
+          Markdown blockquote followed by the page link.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-7"
+        >
+          <span>Does Translate Page send text online?</span>
+
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-7">
+          Yes. QuickWheel's translation feature sends readable page text to
+          Google Translate so it can return translated text. The other
+          QuickWheel actions do not use that translation service.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button
+          class="faq-question"
+          type="button"
+          aria-expanded="false"
+          aria-controls="faq-answer-8"
+        >
+          <span>Is QuickWheel open source?</span>
+
+          <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="faq-answer" id="faq-answer-8">
+          Yes. The source code is publicly available on
+          <a
+            href="https://github.com/fluryjanis/QuickWheel"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
+          under the MIT License.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section>
+  <div class="container">
+    <div class="cta-banner">
+      <h2>Put your browser actions under the cursor.</h2>
+
+      <div class="cta-tagline">
+        Hold. Flick. Release.
+      </div>
+
+      <div class="cta-buttons">
+        <a
+          href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-primary"
+        >
+          Install for Firefox
+        </a>
+
+        <a
+          href="https://sourceforge.net/projects/quickwheel/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-secondary"
+        >
+          Download for Chrome
+        </a>
+
+        <a
+          href="https://github.com/fluryjanis/QuickWheel"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-secondary"
+        >
+          View Source
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+```
+
   </main>
+
+  <!-- FOOTER -->
 
   <footer>
     <div class="container footer-content">
-      <div><strong>QuickWheel</strong> &copy; 2026. Free and Open Source.</div>
-      <div style="display: flex; gap: 1.5rem;">
-        <a href="https://github.com/fluryjanis/QuickWheel" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <a href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/" target="_blank" rel="noopener noreferrer">Firefox Add-on</a>
-        <a href="https://sourceforge.net/projects/quickwheel/" target="_blank" rel="noopener noreferrer">Chrome on SourceForge</a>
+      <div>
+        <strong>QuickWheel</strong>
+        &copy; 2026 · Open Source · MIT License
       </div>
-    </div>
+
+```
+  <div class="footer-links">
+    <a
+      href="https://github.com/fluryjanis/QuickWheel"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      GitHub
+    </a>
+
+    <a
+      href="https://addons.mozilla.org/en-US/firefox/addon/quickwheel/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Firefox Add-on
+    </a>
+
+    <a
+      href="https://sourceforge.net/projects/quickwheel/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Chrome Download
+    </a>
+  </div>
+</div>
+```
+
   </footer>
 
-  <!-- SCRIPT: GENERATE PIE SECTORS & INTERACTION -->
+  <!-- INTERACTION SCRIPT -->
+
   <script>
     (function () {
-      // 8 Actions exactly mapped to the visual layout from the product image
+      "use strict";
+
       const actions = [
-        { name: "Duplicate Tab", dir: "NORTH (↑)", icon: "📑", desc: "Clones the current active tab in the background without manually copying links.", startAngle: -22.5, endAngle: 22.5, midAngle: 0 },
-        { name: "Jump to Top", dir: "NORTH-EAST (↗)", icon: "▲", desc: "Instant smooth scroll straight to the very top of the page.", startAngle: 22.5, endAngle: 67.5, midAngle: 45 },
-        { name: "Focus Search", dir: "EAST (→)", icon: "🔍", desc: "Instantly brings keyboard focus straight to page search boxes or the search bar.", startAngle: 67.5, endAngle: 112.5, midAngle: 90 },
-        { name: "Mute Tab", dir: "SOUTH-EAST (↘)", icon: "🔇", desc: "Immediately silence background tabs, auto-playing video streams, or music.", startAngle: 112.5, endAngle: 157.5, midAngle: 135 },
-        { name: "Copy Markdown", dir: "SOUTH (↓)", icon: "📝", desc: "Copies current page title & URL formatted as a clean Markdown link [Title](URL).", startAngle: 157.5, endAngle: 202.5, midAngle: 180 },
-        { name: "Copy Link", dir: "SOUTH-WEST (↙)", icon: "🔗", desc: "Copies current page clean address to clipboard ready for sharing.", startAngle: 202.5, endAngle: 247.5, midAngle: 225 },
-        { name: "Translate", dir: "WEST (←)", icon: "🌐", desc: "Instantly triggers page translation into your preferred native language.", startAngle: 247.5, endAngle: 292.5, midAngle: 270 },
-        { name: "Reopen Tab", dir: "NORTH-WEST (↖)", icon: "↺", desc: "Restores your most recently closed browser tab in a snap.", startAngle: 292.5, endAngle: 337.5, midAngle: 315 }
+        {
+          name: "Duplicate Tab",
+          dir: "NORTH (↑)",
+          icon: "⎘",
+          desc: "Open a duplicate of the current tab without going through the tab menu.",
+          startAngle: -22.5,
+          endAngle: 22.5,
+          midAngle: 0
+        },
+        {
+          name: "Jump to Top",
+          dir: "NORTH-EAST (↗)",
+          icon: "▲",
+          desc: "Smoothly scroll a long webpage back to the top.",
+          startAngle: 22.5,
+          endAngle: 67.5,
+          midAngle: 45
+        },
+        {
+          name: "Focus Search",
+          dir: "EAST (→)",
+          icon: "🔍",
+          desc: "Find and focus a compatible search input on the current page.",
+          startAngle: 67.5,
+          endAngle: 112.5,
+          midAngle: 90
+        },
+        {
+          name: "Mute / Unmute Tab",
+          dir: "SOUTH-EAST (↘)",
+          icon: "🔇",
+          desc: "Toggle audio for the current browser tab.",
+          startAngle: 112.5,
+          endAngle: 157.5,
+          midAngle: 135
+        },
+        {
+          name: "Copy Markdown",
+          dir: "SOUTH (↓)",
+          icon: "📝",
+          desc: "Copy the page as a Markdown link, including selected text as a blockquote when applicable.",
+          startAngle: 157.5,
+          endAngle: 202.5,
+          midAngle: 180
+        },
+        {
+          name: "Copy Link",
+          dir: "SOUTH-WEST (↙)",
+          icon: "🔗",
+          desc: "Copy the current page URL directly to the clipboard.",
+          startAngle: 202.5,
+          endAngle: 247.5,
+          midAngle: 225
+        },
+        {
+          name: "Translate Page",
+          dir: "WEST (←)",
+          icon: "🌐",
+          desc: "Translate readable page text in place without opening a separate translation tab.",
+          startAngle: 247.5,
+          endAngle: 292.5,
+          midAngle: 270
+        },
+        {
+          name: "Reopen Closed Tab",
+          dir: "NORTH-WEST (↖)",
+          icon: "↺",
+          desc: "Restore the most recently closed browser tab.",
+          startAngle: 292.5,
+          endAngle: 337.5,
+          midAngle: 315
+        }
       ];
 
       function polarToCartesian(cx, cy, r, angleInDegrees) {
-        const rad = (angleInDegrees - 90) * Math.PI / 180.0;
+        const radians = (angleInDegrees - 90) * Math.PI / 180;
+
         return {
-          x: cx + (r * Math.cos(rad)),
-          y: cy + (r * Math.sin(rad))
+          x: cx + (r * Math.cos(radians)),
+          y: cy + (r * Math.sin(radians))
         };
       }
 
-      function describeDonutSegment(cx, cy, innerR, outerR, startAngle, endAngle) {
+      function describeDonutSegment(
+        cx,
+        cy,
+        innerR,
+        outerR,
+        startAngle,
+        endAngle
+      ) {
         const p1 = polarToCartesian(cx, cy, outerR, startAngle);
         const p2 = polarToCartesian(cx, cy, outerR, endAngle);
         const p3 = polarToCartesian(cx, cy, innerR, endAngle);
@@ -935,39 +1972,88 @@
 
       function buildWheelSlices(containerId, isInteractive) {
         const group = document.getElementById(containerId);
-        if (!group) return;
-        const cx = 220, cy = 220, innerR = 48, outerR = 210, iconR = 125, textR = 158;
 
-        actions.forEach((act, idx) => {
-          const pathD = describeDonutSegment(cx, cy, innerR, outerR, act.startAngle, act.endAngle);
+        if (!group) {
+          return;
+        }
 
-          // Wedge Path
-          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          path.setAttribute("d", pathD);
-          path.setAttribute("class", "wheel-sector-wedge" + (idx === 0 && isInteractive ? " active-wedge" : ""));
-          path.setAttribute("data-index", idx);
+        const cx = 220;
+        const cy = 220;
+        const innerR = 48;
+        const outerR = 210;
+        const iconR = 125;
+        const textR = 158;
+
+        actions.forEach((action, index) => {
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          );
+
+          path.setAttribute(
+            "d",
+            describeDonutSegment(
+              cx,
+              cy,
+              innerR,
+              outerR,
+              action.startAngle,
+              action.endAngle
+            )
+          );
+
+          path.setAttribute(
+            "class",
+            "wheel-sector-wedge" +
+              (index === 0 && isInteractive ? " active-wedge" : "")
+          );
+
+          path.setAttribute("data-index", index);
+
           group.appendChild(path);
 
-          // Icon and Label
-          const iconPos = polarToCartesian(cx, cy, iconR, act.midAngle);
-          const textPos = polarToCartesian(cx, cy, textR, act.midAngle);
+          const iconPosition = polarToCartesian(
+            cx,
+            cy,
+            iconR,
+            action.midAngle
+          );
 
-          const itemGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          const textPosition = polarToCartesian(
+            cx,
+            cy,
+            textR,
+            action.midAngle
+          );
+
+          const itemGroup = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g"
+          );
+
           itemGroup.setAttribute("class", "wheel-icon-item");
 
-          // Text Icon
-          const iconText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          iconText.setAttribute("x", iconPos.x);
-          iconText.setAttribute("y", iconPos.y + 6);
+          const iconText = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text"
+          );
+
+          iconText.setAttribute("x", iconPosition.x);
+          iconText.setAttribute("y", iconPosition.y + 6);
           iconText.setAttribute("font-size", "22");
-          iconText.textContent = act.icon;
+          iconText.textContent = action.icon;
+
           itemGroup.appendChild(iconText);
 
-          // Action Name Label
-          const labelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          labelText.setAttribute("x", textPos.x);
-          labelText.setAttribute("y", textPos.y + 4);
-          labelText.textContent = act.name;
+          const labelText = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text"
+          );
+
+          labelText.setAttribute("x", textPosition.x);
+          labelText.setAttribute("y", textPosition.y + 4);
+          labelText.textContent = action.name;
+
           itemGroup.appendChild(labelText);
 
           group.appendChild(itemGroup);
@@ -977,60 +2063,98 @@
       buildWheelSlices("heroWheelSlices", false);
       buildWheelSlices("interactiveWheelSlices", true);
 
-      // Interactive Demo Behavior
       const demoTitle = document.getElementById("demoTitle");
       const demoDesc = document.getElementById("demoDesc");
       const demoDir = document.getElementById("demoDir");
       const interactiveWheel = document.getElementById("interactiveWheel");
+      const interactiveCenterBtn = document.getElementById("interactiveCenterBtn");
 
-      function updateActiveAction(idx) {
-        const wedges = document.querySelectorAll("#interactiveWheelSlices .wheel-sector-wedge");
-        wedges.forEach((w, i) => {
-          w.classList.toggle("active-wedge", i === idx);
+      function updateActiveAction(index) {
+        const wedges = document.querySelectorAll(
+          "#interactiveWheelSlices .wheel-sector-wedge"
+        );
+
+        wedges.forEach((wedge, wedgeIndex) => {
+          wedge.classList.toggle(
+            "active-wedge",
+            wedgeIndex === index
+          );
         });
-        const act = actions[idx];
-        demoTitle.innerHTML = `<span style="font-size:1.8rem;margin-right:0.5rem">${act.icon}</span> ${act.name}`;
-        demoDesc.textContent = act.desc;
-        demoDir.textContent = `DIRECTION: ${act.dir}`;
+
+        const action = actions[index];
+
+        demoTitle.innerHTML =
+          '<span aria-hidden="true" style="font-size:1.8rem">' +
+          action.icon +
+          "</span>" +
+          action.name;
+
+        demoDesc.textContent = action.desc;
+        demoDir.textContent = "DIRECTION: " + action.dir;
       }
 
-      // Wedge hover listeners
-      const demoWedges = document.querySelectorAll("#interactiveWheelSlices .wheel-sector-wedge");
+      const demoWedges = document.querySelectorAll(
+        "#interactiveWheelSlices .wheel-sector-wedge"
+      );
+
       demoWedges.forEach((wedge) => {
         wedge.addEventListener("mouseenter", () => {
-          const idx = parseInt(wedge.getAttribute("data-index"), 10);
-          updateActiveAction(idx);
+          const index = Number(
+            wedge.getAttribute("data-index")
+          );
+
+          updateActiveAction(index);
         });
       });
 
-      // Mouse angle tracking over wheel container
       if (interactiveWheel) {
-        interactiveWheel.addEventListener("mousemove", (e) => {
+        interactiveWheel.addEventListener("mousemove", (event) => {
           const rect = interactiveWheel.getBoundingClientRect();
-          const cx = rect.left + rect.width / 2;
-          const cy = rect.top + rect.height / 2;
-          const dx = e.clientX - cx;
-          const dy = e.clientY - cy;
-          const dist = Math.hypot(dx, dy);
 
-          if (dist > 35) {
-            let deg = Math.atan2(dx, -dy) * (180 / Math.PI);
-            if (deg < 0) deg += 360;
-            // 8 sectors offset by 22.5 deg
-            const sliceIndex = Math.floor(((deg + 22.5) % 360) / 45);
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+
+          const dx = event.clientX - centerX;
+          const dy = event.clientY - centerY;
+
+          const distance = Math.hypot(dx, dy);
+
+          if (distance > 35) {
+            let degrees =
+              Math.atan2(dx, -dy) * (180 / Math.PI);
+
+            if (degrees < 0) {
+              degrees += 360;
+            }
+
+            const sliceIndex =
+              Math.floor(((degrees + 22.5) % 360) / 45);
+
             updateActiveAction(sliceIndex);
           }
         });
       }
 
-      // FAQ accordion toggle
-      document.querySelectorAll(".faq-question").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const item = btn.parentElement;
-          item.classList.toggle("open");
+      if (interactiveCenterBtn) {
+        interactiveCenterBtn.addEventListener("click", () => {
+          updateActiveAction(0);
+        });
+      }
+
+      document.querySelectorAll(".faq-question").forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = button.parentElement;
+          const isOpen = item.classList.contains("open");
+
+          item.classList.toggle("open", !isOpen);
+          button.setAttribute(
+            "aria-expanded",
+            String(!isOpen)
+          );
         });
       });
     })();
   </script>
+
 </body>
 </html>
